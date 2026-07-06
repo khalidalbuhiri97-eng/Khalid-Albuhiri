@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -208,52 +209,107 @@ fun LoginAndRegisterScreen(viewModel: SouqViewModel) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                                MaterialTheme.colorScheme.background
+                            )
+                        )
+                    )
                     .verticalScroll(rememberScrollState())
-                    .background(MaterialTheme.colorScheme.background)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(horizontal = 20.dp, vertical = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
-                        contentAlignment = Alignment.Center
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Logo & App Name Header with Custom Font Weight
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Handyman,
-                            contentDescription = "Logo",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(36.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Storefront,
+                                contentDescription = "Logo",
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "سوق",
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            letterSpacing = (-0.5).sp
                         )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = when (mode) {
-                            "SIGN_IN" -> "تسجيل الدخول إلى سوق"
-                            "SIGN_UP" -> "إنشاء حساب جديد"
-                            else -> "إكمال ملفك الشخصي"
-                        },
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = when (mode) {
-                            "SIGN_IN" -> "سجل دخولك ببريدك الإلكتروني، حساب Google، أو استخدم المحاكاة السريعة"
-                            "SIGN_UP" -> "أنشئ حساباً آمناً عبر البريد الإلكتروني لتتمكن من استخدام سوق"
-                            else -> "يرجى تعبئة التفاصيل أدناه لإكمال حسابك وربطك بالحي"
-                        },
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
-                    )
 
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Redesigned Premium Hero Banner Card (Using generated Image)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                    ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            Image(
+                                painter = painterResource(id = com.example.R.drawable.img_login_hero),
+                                contentDescription = "Community Services",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            // Elegant Dark Overlay for text legibility
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.Transparent,
+                                                Color.Black.copy(alpha = 0.75f)
+                                            )
+                                        )
+                                    )
+                            )
+                            Column(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(16.dp)
+                            ) {
+                                Text(
+                                    text = "تواصل وطلب خدمات مباشر بالسوق",
+                                    color = Color.White,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "تبادل المهن، الخدمات والطلبات بلمسة زر واحدة وبدون أي عمولات محددة.",
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    fontSize = 11.sp,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // Mode description or error layout
                     if (authError != null && authError != "PROFILE_INCOMPLETE") {
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
@@ -263,378 +319,480 @@ fun LoginAndRegisterScreen(viewModel: SouqViewModel) {
                                 text = authError ?: "",
                                 color = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.padding(12.dp),
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
                             )
                         }
                     }
 
-                    if (mode == "SIGN_IN") {
-                        // Quick Prototyping Logins (AWESOME!)
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = "بوابة المحاكاة التجريبية (دخول سريع)",
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontSize = 15.sp
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Button(
-                                    onClick = { viewModel.loginById("cust_khaled") },
-                                    modifier = Modifier.fillMaxWidth().testTag("quick_login_customer"),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    // Elegant Input Forms Box
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
+                    ) {
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            // Tab selector for SIGN_IN vs SIGN_UP if not in COMPLETE_PROFILE
+                            if (mode != "COMPLETE_PROFILE") {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.LightGray.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
+                                        .padding(4.dp)
                                 ) {
-                                    Icon(Icons.Default.Person, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("دخول كعميل تجريبي (خالد)")
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Button(
-                                    onClick = { viewModel.loginById("tech_ahmed") },
-                                    modifier = Modifier.fillMaxWidth().testTag("quick_login_tech"),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                                ) {
-                                    Icon(Icons.Default.Handyman, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("دخول كفني تجريبي (أحمد النجار)")
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Button(
-                                    onClick = { viewModel.loginById("admin_super") },
-                                    modifier = Modifier.fillMaxWidth().testTag("quick_login_admin"),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary)
-                                ) {
-                                    Icon(Icons.Default.AdminPanelSettings, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("دخول كمدير النظام (أبو فهد)")
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Text(
-                            text = "أو عبر خيارات الدخول الآمن لحسابك:",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            modifier = Modifier.align(Alignment.Start)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = email,
-                            onValueChange = { email = it },
-                            label = { Text("البريد الإلكتروني") },
-                            modifier = Modifier.fillMaxWidth().testTag("email_input"),
-                            leadingIcon = { Icon(Icons.Default.Email, null) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            label = { Text("كلمة المرور") },
-                            modifier = Modifier.fillMaxWidth().testTag("password_input"),
-                            leadingIcon = { Icon(Icons.Default.Lock, null) },
-                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                val image = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                                val description = if (passwordVisible) "إخفاء كلمة المرور" else "إظهار كلمة المرور"
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(imageVector = image, contentDescription = description)
-                                }
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Button(
-                            onClick = {
-                                if (email.isNotEmpty() && password.isNotEmpty()) {
-                                    viewModel.signInWithEmail(email, password) { success, status ->
-                                        if (success) {
-                                            Toast.makeText(context, "أهلاً بك مجدداً!", Toast.LENGTH_SHORT).show()
-                                        } else if (status == "PROFILE_INCOMPLETE") {
-                                            mode = "COMPLETE_PROFILE"
-                                        } else {
-                                            Toast.makeText(context, status ?: "حدث خطأ ما", Toast.LENGTH_LONG).show()
-                                        }
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .background(
+                                                color = if (mode == "SIGN_IN") MaterialTheme.colorScheme.primary else Color.Transparent,
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                            .clickable { mode = "SIGN_IN" }
+                                            .padding(vertical = 10.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "تسجيل الدخول",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = if (mode == "SIGN_IN") Color.White else Color.Gray
+                                        )
                                     }
-                                } else {
-                                    Toast.makeText(context, "الرجاء إدخال البريد الإلكتروني وكلمة المرور", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            enabled = !isAuthLoading,
-                            modifier = Modifier.fillMaxWidth().height(50.dp).testTag("login_submit_button")
-                        ) {
-                            if (isAuthLoading) {
-                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                            } else {
-                                Icon(Icons.Default.Login, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("تسجيل الدخول الآمن")
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Google Sign In Actions
-                        Button(
-                            onClick = {
-                                val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                                    .requestIdToken("google_placeholder_web_client_id")
-                                    .requestEmail()
-                                    .build()
-                                val googleSignInClient = GoogleSignIn.getClient(context, gso)
-                                try {
-                                    googleSignInLauncher.launch(googleSignInClient.signInIntent)
-                                } catch (e: Exception) {
-                                    // Fallback / simulation toggle for demo environments
-                                    Toast.makeText(context, "البيئة لا تدعم خدمات Google. تفعيل وضع المحاكاة...", Toast.LENGTH_LONG).show()
-                                    // Simulation of Google Auth successful redirect:
-                                    val randomGoogleUid = "google_${System.currentTimeMillis().toString().takeLast(6)}"
-                                    viewModel.loginById(randomGoogleUid) { exists ->
-                                        if (exists) {
-                                            Toast.makeText(context, "تم تسجيل الدخول بـ Google (محاكاة)", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            name = "مستخدم جوجل المحاكي"
-                                            mode = "COMPLETE_PROFILE"
-                                        }
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .background(
+                                                color = if (mode == "SIGN_UP") MaterialTheme.colorScheme.primary else Color.Transparent,
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                            .clickable { mode = "SIGN_UP" }
+                                            .padding(vertical = 10.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "حساب جديد",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = if (mode == "SIGN_UP") Color.White else Color.Gray
+                                        )
                                     }
                                 }
-                            },
-                            enabled = !isAuthLoading,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4285F4)),
-                            modifier = Modifier.fillMaxWidth().height(50.dp).testTag("google_login_button")
-                        ) {
-                            Icon(Icons.Default.AccountCircle, contentDescription = null, tint = Color.White)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("تسجيل الدخول بواسطة Google", color = Color.White)
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-                        TextButton(onClick = { mode = "SIGN_UP" }) {
-                            Text("ليس لديك حساب؟ إنشاء حساب جديد", fontWeight = FontWeight.Bold)
-                        }
-
-                    } else if (mode == "SIGN_UP") {
-                        OutlinedTextField(
-                            value = email,
-                            onValueChange = { email = it },
-                            label = { Text("البريد الإلكتروني") },
-                            modifier = Modifier.fillMaxWidth().testTag("signup_email_input"),
-                            leadingIcon = { Icon(Icons.Default.Email, null) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = password,
-                            onValueChange = { password = it },
-                            label = { Text("كلمة المرور الجديدة") },
-                            modifier = Modifier.fillMaxWidth().testTag("signup_password_input"),
-                            leadingIcon = { Icon(Icons.Default.Lock, null) },
-                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                val image = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                                val description = if (passwordVisible) "إخفاء كلمة المرور" else "إظهار كلمة المرور"
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(imageVector = image, contentDescription = description)
-                                }
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-                        )
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        Button(
-                            onClick = {
-                                if (email.isNotEmpty() && password.length >= 6) {
-                                    viewModel.signUpWithEmail(email, password) { success, status ->
-                                        if (success) {
-                                            Toast.makeText(context, "تم إنشاء الحساب! يرجى إكمال ملفك الشخصي", Toast.LENGTH_LONG).show()
-                                            mode = "COMPLETE_PROFILE"
-                                        } else {
-                                            Toast.makeText(context, status ?: "خطأ أثناء إنشاء الحساب", Toast.LENGTH_LONG).show()
-                                        }
-                                    }
-                                } else if (password.length < 6) {
-                                    Toast.makeText(context, "يجب أن تكون كلمة المرور 6 أحرف على الأقل", Toast.LENGTH_LONG).show()
-                                } else {
-                                    Toast.makeText(context, "الرجاء تعبئة جميع الحقول", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            enabled = !isAuthLoading,
-                            modifier = Modifier.fillMaxWidth().height(50.dp).testTag("signup_submit_button")
-                        ) {
-                            if (isAuthLoading) {
-                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                            } else {
-                                Icon(Icons.Default.AppRegistration, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("إنشاء حساب بريد إلكتروني")
+                                Spacer(modifier = Modifier.height(18.dp))
                             }
-                        }
 
-                        Spacer(modifier = Modifier.height(16.dp))
-                        TextButton(onClick = { mode = "SIGN_IN" }) {
-                            Text("لديك حساب بالفعل؟ العودة لتسجيل الدخول", fontWeight = FontWeight.Bold)
-                        }
+                            // Render forms based on active mode
+                            when (mode) {
+                                "SIGN_IN" -> {
+                                    Text(
+                                        text = "أدخل بيانات حسابك للولوج لسوق:",
+                                        fontSize = 12.sp,
+                                        color = Color.Gray,
+                                        modifier = Modifier.padding(bottom = 12.dp)
+                                    )
 
-                    } else if (mode == "COMPLETE_PROFILE") {
-                        // Registration Screen fields
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { name = it },
-                            label = { Text("الاسم الكامل") },
-                            modifier = Modifier.fillMaxWidth().testTag("profile_name_input"),
-                            leadingIcon = { Icon(Icons.Default.Person, null) }
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = phone,
-                            onValueChange = { phone = it },
-                            label = { Text("رقم الجوال") },
-                            modifier = Modifier.fillMaxWidth().testTag("profile_phone_input"),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            leadingIcon = { Icon(Icons.Default.Phone, null) }
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = city,
-                            onValueChange = { city = it },
-                            label = { Text("المدينة") },
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = { Icon(Icons.Default.LocationCity, null) }
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = neighborhood,
-                            onValueChange = { neighborhood = it },
-                            label = { Text("الحي") },
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = { Icon(Icons.Default.Map, null) }
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = bio,
-                            onValueChange = { bio = it },
-                            label = { Text("نبذة قصيرة") },
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = { Icon(Icons.Default.Info, null) }
-                        )
+                                    OutlinedTextField(
+                                        value = email,
+                                        onValueChange = { email = it },
+                                        label = { Text("البريد الإلكتروني") },
+                                        modifier = Modifier.fillMaxWidth().testTag("email_input"),
+                                        leadingIcon = { Icon(Icons.Default.Email, null, tint = MaterialTheme.colorScheme.primary) },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
 
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("نوع الحساب:", fontWeight = FontWeight.Bold)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.clickable { role = "CUSTOMER" }.padding(8.dp)
-                            ) {
-                                RadioButton(selected = role == "CUSTOMER", onClick = { role = "CUSTOMER" })
-                                Text("عميل")
-                            }
-                            Spacer(modifier = Modifier.width(24.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.clickable { role = "TECHNICIAN" }.padding(8.dp)
-                            ) {
-                                RadioButton(selected = role == "TECHNICIAN", onClick = { role = "TECHNICIAN" })
-                                Text("مقدم خدمة (فني)")
-                            }
-                        }
-
-                        if (role == "TECHNICIAN") {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("تخصص ومجال عمل الفني", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                                     Spacer(modifier = Modifier.height(12.dp))
-                                    // Custom Profession Selection
-                                    var expandedProf by remember { mutableStateOf(false) }
-                                    Box(modifier = Modifier.fillMaxWidth()) {
-                                        OutlinedButton(
-                                            onClick = { expandedProf = true },
+
+                                    OutlinedTextField(
+                                        value = password,
+                                        onValueChange = { password = it },
+                                        label = { Text("كلمة المرور") },
+                                        modifier = Modifier.fillMaxWidth().testTag("password_input"),
+                                        leadingIcon = { Icon(Icons.Default.Lock, null, tint = MaterialTheme.colorScheme.primary) },
+                                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                        trailingIcon = {
+                                            val image = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                                            val description = if (passwordVisible) "إخفاء كلمة المرور" else "إظهار كلمة المرور"
+                                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                                Icon(imageVector = image, contentDescription = description)
+                                            }
+                                        },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(20.dp))
+
+                                    Button(
+                                        onClick = {
+                                            if (email.isNotEmpty() && password.isNotEmpty()) {
+                                                viewModel.signInWithEmail(email, password) { success, status ->
+                                                    if (success) {
+                                                        Toast.makeText(context, "أهلاً بك مجدداً!", Toast.LENGTH_SHORT).show()
+                                                    } else if (status == "PROFILE_INCOMPLETE") {
+                                                        mode = "COMPLETE_PROFILE"
+                                                    } else {
+                                                        Toast.makeText(context, status ?: "حدث خطأ ما", Toast.LENGTH_LONG).show()
+                                                    }
+                                                }
+                                            } else {
+                                                Toast.makeText(context, "الرجاء إدخال البريد الإلكتروني وكلمة المرور", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        enabled = !isAuthLoading,
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(50.dp)
+                                            .testTag("login_submit_button")
+                                    ) {
+                                        if (isAuthLoading) {
+                                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                                        } else {
+                                            Icon(Icons.Default.Login, contentDescription = null)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("تسجيل دخول آمن", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    // Beautiful Divider
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    ) {
+                                        Divider(modifier = Modifier.weight(1f), color = Color.LightGray.copy(alpha = 0.5f))
+                                        Text("أو الدخول عبر جوجل", fontSize = 11.sp, color = Color.Gray, modifier = Modifier.padding(horizontal = 10.dp))
+                                        Divider(modifier = Modifier.weight(1f), color = Color.LightGray.copy(alpha = 0.5f))
+                                    }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    // Premium Google Sign-In Button
+                                    OutlinedButton(
+                                        onClick = {
+                                            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                                .requestIdToken("google_placeholder_web_client_id")
+                                                .requestEmail()
+                                                .build()
+                                            val googleSignInClient = GoogleSignIn.getClient(context, gso)
+                                            try {
+                                                googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "بيئة المحاكاة: تفعيل الدخول المحاكي لـ Google...", Toast.LENGTH_SHORT).show()
+                                                val randomGoogleUid = "google_${System.currentTimeMillis().toString().takeLast(6)}"
+                                                viewModel.loginById(randomGoogleUid) { exists ->
+                                                    if (exists) {
+                                                        Toast.makeText(context, "تم تسجيل الدخول بـ Google (محاكاة)", Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        name = "مستكشف جوجل المحاكي"
+                                                        mode = "COMPLETE_PROFILE"
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        enabled = !isAuthLoading,
+                                        shape = RoundedCornerShape(10.dp),
+                                        border = BorderStroke(1.dp, Color.LightGray),
+                                        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(50.dp)
+                                            .testTag("google_login_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.AccountCircle,
+                                            contentDescription = "Google",
+                                            tint = Color(0xFF4285F4),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text("تسجيل الدخول بواسطة Google", color = Color.DarkGray, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+
+                                }
+
+                                "SIGN_UP" -> {
+                                    Text(
+                                        text = "قم بإنشاء حساب جديد بالبريد الإلكتروني للولوج للسوق:",
+                                        fontSize = 12.sp,
+                                        color = Color.Gray,
+                                        modifier = Modifier.padding(bottom = 12.dp)
+                                    )
+
+                                    OutlinedTextField(
+                                        value = email,
+                                        onValueChange = { email = it },
+                                        label = { Text("البريد الإلكتروني") },
+                                        modifier = Modifier.fillMaxWidth().testTag("signup_email_input"),
+                                        leadingIcon = { Icon(Icons.Default.Email, null, tint = MaterialTheme.colorScheme.primary) },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    OutlinedTextField(
+                                        value = password,
+                                        onValueChange = { password = it },
+                                        label = { Text("كلمة المرور الجديدة") },
+                                        modifier = Modifier.fillMaxWidth().testTag("signup_password_input"),
+                                        leadingIcon = { Icon(Icons.Default.Lock, null, tint = MaterialTheme.colorScheme.primary) },
+                                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                        trailingIcon = {
+                                            val image = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff
+                                            val description = if (passwordVisible) "إخفاء كلمة المرور" else "إظهار كلمة المرور"
+                                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                                Icon(imageVector = image, contentDescription = description)
+                                            }
+                                        },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(20.dp))
+
+                                    Button(
+                                        onClick = {
+                                            if (email.isNotEmpty() && password.length >= 6) {
+                                                viewModel.signUpWithEmail(email, password) { success, status ->
+                                                    if (success) {
+                                                        Toast.makeText(context, "تم إنشاء الحساب! يرجى إكمال ملفك الشخصي", Toast.LENGTH_LONG).show()
+                                                        mode = "COMPLETE_PROFILE"
+                                                    } else {
+                                                        Toast.makeText(context, status ?: "خطأ أثناء إنشاء الحساب", Toast.LENGTH_LONG).show()
+                                                    }
+                                                }
+                                            } else if (password.length < 6) {
+                                                Toast.makeText(context, "يجب أن تكون كلمة المرور 6 أحرف على الأقل", Toast.LENGTH_LONG).show()
+                                            } else {
+                                                Toast.makeText(context, "الرجاء تعبئة جميع الحقول", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        enabled = !isAuthLoading,
+                                        shape = RoundedCornerShape(10.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(50.dp)
+                                            .testTag("signup_submit_button")
+                                    ) {
+                                        if (isAuthLoading) {
+                                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                                        } else {
+                                            Icon(Icons.Default.AppRegistration, contentDescription = null)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("إنشاء حساب بريد إلكتروني جديد", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+
+                                "COMPLETE_PROFILE" -> {
+                                    Text(
+                                        text = "يرجى إكمال معلومات الملف الشخصي للبدء مباشرة في سوق:",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(bottom = 14.dp)
+                                    )
+
+                                    OutlinedTextField(
+                                        value = name,
+                                        onValueChange = { name = it },
+                                        label = { Text("الاسم الكامل") },
+                                        modifier = Modifier.fillMaxWidth().testTag("profile_name_input"),
+                                        leadingIcon = { Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.primary) },
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    OutlinedTextField(
+                                        value = phone,
+                                        onValueChange = { phone = it },
+                                        label = { Text("رقم الجوال") },
+                                        modifier = Modifier.fillMaxWidth().testTag("profile_phone_input"),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                        leadingIcon = { Icon(Icons.Default.Phone, null, tint = MaterialTheme.colorScheme.primary) },
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        OutlinedTextField(
+                                            value = city,
+                                            onValueChange = { city = it },
+                                            label = { Text("المدينة") },
+                                            modifier = Modifier.weight(1f),
+                                            leadingIcon = { Icon(Icons.Default.LocationCity, null, tint = Color.Gray) },
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        OutlinedTextField(
+                                            value = neighborhood,
+                                            onValueChange = { neighborhood = it },
+                                            label = { Text("الحي") },
+                                            modifier = Modifier.weight(1f),
+                                            leadingIcon = { Icon(Icons.Default.Map, null, tint = Color.Gray) },
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    OutlinedTextField(
+                                        value = bio,
+                                        onValueChange = { bio = it },
+                                        label = { Text("نبذة قصيرة وتفاصيل إضافية") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        leadingIcon = { Icon(Icons.Default.Info, null, tint = Color.Gray) },
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text("نوع العضوية بالحي:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.Gray)
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    // Premium Segmented Account Type Choice
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .background(
+                                                    color = if (role == "CUSTOMER") MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent,
+                                                    shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+                                                )
+                                                .clickable { role = "CUSTOMER" }
+                                                .padding(vertical = 12.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                RadioButton(selected = role == "CUSTOMER", onClick = { role = "CUSTOMER" })
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("عميل / جار", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .background(
+                                                    color = if (role == "TECHNICIAN") MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f) else Color.Transparent,
+                                                    shape = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp)
+                                                )
+                                                .clickable { role = "TECHNICIAN" }
+                                                .padding(vertical = 12.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                RadioButton(selected = role == "TECHNICIAN", onClick = { role = "TECHNICIAN" })
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("مقدم خدمة فني", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
+                                            }
+                                        }
+                                    }
+
+                                    if (role == "TECHNICIAN") {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Text("التخصص: $profession")
-                                        }
-                                        DropdownMenu(expanded = expandedProf, onDismissRequest = { expandedProf = false }) {
-                                            professionsList.forEach { p ->
-                                                DropdownMenuItem(
-                                                    text = { Text(p) },
-                                                    onClick = {
-                                                        profession = p
-                                                        expandedProf = false
+                                            Column(modifier = Modifier.padding(14.dp)) {
+                                                Text("مجال التخصص المهني للفني:", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                                                Spacer(modifier = Modifier.height(10.dp))
+                                                
+                                                var expandedProf by remember { mutableStateOf(false) }
+                                                Box(modifier = Modifier.fillMaxWidth()) {
+                                                    OutlinedButton(
+                                                        onClick = { expandedProf = true },
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        shape = RoundedCornerShape(8.dp)
+                                                    ) {
+                                                        Text("التخصص الحالي: $profession", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                                     }
+                                                    DropdownMenu(expanded = expandedProf, onDismissRequest = { expandedProf = false }) {
+                                                        professionsList.forEach { p ->
+                                                            DropdownMenuItem(
+                                                                text = { Text(p, fontSize = 12.sp) },
+                                                                onClick = {
+                                                                    profession = p
+                                                                    expandedProf = false
+                                                                }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.height(10.dp))
+                                                OutlinedTextField(
+                                                    value = experience,
+                                                    onValueChange = { experience = it },
+                                                    label = { Text("سنوات الخبرة في المجال") },
+                                                    modifier = Modifier.fillMaxWidth().testTag("profile_experience_input"),
+                                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                                    shape = RoundedCornerShape(8.dp)
                                                 )
                                             }
                                         }
                                     }
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    OutlinedTextField(
-                                        value = experience,
-                                        onValueChange = { experience = it },
-                                        label = { Text("سنوات الخبرة") },
-                                        modifier = Modifier.fillMaxWidth().testTag("profile_experience_input"),
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                                    )
+
+                                    Spacer(modifier = Modifier.height(20.dp))
+
+                                    Button(
+                                        onClick = {
+                                            if (name.isNotEmpty() && phone.isNotEmpty()) {
+                                                viewModel.registerUser(
+                                                    name = name,
+                                                    phone = phone,
+                                                    role = role,
+                                                    profession = profession,
+                                                    experienceYears = experience.toIntOrNull() ?: 0,
+                                                    city = city,
+                                                    neighborhood = neighborhood,
+                                                    bio = bio,
+                                                    onSuccess = {
+                                                        Toast.makeText(context, "تم إعداد الملف الشخصي والدخول بسلام!", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                )
+                                            } else {
+                                                Toast.makeText(context, "يرجى تعبئة الاسم ورقم الجوال لتسجيل حسابك", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth().height(50.dp).testTag("register_submit_button"),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Icon(Icons.Default.Done, contentDescription = null)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("حفظ بيانات الملف الشخصي والدخول", fontWeight = FontWeight.Bold)
+                                    }
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    TextButton(
+                                        onClick = {
+                                            viewModel.logout()
+                                            mode = "SIGN_IN"
+                                        },
+                                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                                    ) {
+                                        Text("إلغاء والعودة لتسجيل الدخول", color = Color.Gray)
+                                    }
                                 }
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Button(
-                            onClick = {
-                                if (name.isNotEmpty() && phone.isNotEmpty()) {
-                                    viewModel.registerUser(
-                                        name = name,
-                                        phone = phone,
-                                        role = role,
-                                        profession = profession,
-                                        experienceYears = experience.toIntOrNull() ?: 0,
-                                        city = city,
-                                        neighborhood = neighborhood,
-                                        bio = bio,
-                                        onSuccess = {
-                                            Toast.makeText(context, "تم إعداد الملف الشخصي والدخول!", Toast.LENGTH_SHORT).show()
-                                        }
-                                    )
-                                } else {
-                                    Toast.makeText(context, "يرجى تعبئة الاسم ورقم الجوال", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth().height(50.dp).testTag("register_submit_button")
-                        ) {
-                            Icon(Icons.Default.Done, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("حفظ بيانات الملف الشخصي والدخول")
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        TextButton(onClick = {
-                            viewModel.logout()
-                            mode = "SIGN_IN"
-                        }) {
-                            Text("إلغاء والعودة لتسجيل الدخول")
-                        }
                     }
+
+
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "سوق © جميع الحقوق محفوظة 2026",
+                        fontSize = 10.sp,
+                        color = Color.Gray.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -1070,6 +1228,7 @@ fun MainContainerScreen(viewModel: SouqViewModel) {
 
                 if (showSettingsDialog) {
                     SettingsDialog(
+                        viewModel = viewModel,
                         onDismiss = { showSettingsDialog = false }
                     )
                 }
@@ -1586,6 +1745,20 @@ fun RequestsScreen(viewModel: SouqViewModel) {
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(text = req.description, fontSize = 13.sp, color = Color.DarkGray)
+
+                            if (!req.imageUri.isNullOrEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                AsyncImage(
+                                    model = req.imageUri,
+                                    contentDescription = "صورة العطل المرفقة",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(140.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.LocationOn, null, tint = Color.Gray, modifier = Modifier.size(14.dp))
@@ -1686,6 +1859,19 @@ fun RequestsScreen(viewModel: SouqViewModel) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(req.description, fontSize = 13.sp, color = Color.Gray, maxLines = 2)
 
+                        if (!req.imageUri.isNullOrEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            AsyncImage(
+                                model = req.imageUri,
+                                contentDescription = "صورة العطل المرفقة",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(140.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1762,6 +1948,18 @@ fun RequestDetailDialog(
 
     var chatText by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    val chatImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let { selectedUri ->
+            val localPath = saveUriToInternalStorage(context, selectedUri)
+            if (localPath != null) {
+                viewModel.sendMessage(localPath, "IMAGE")
+            }
+        }
+    }
 
     if (currentRequest == null) return
 
@@ -1881,6 +2079,18 @@ fun RequestDetailDialog(
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     Text("شرح المشكلة:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                     Text(currentRequest!!.description, fontSize = 13.sp, color = Color.DarkGray)
+                                    if (!currentRequest!!.imageUri.isNullOrEmpty()) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        AsyncImage(
+                                            model = currentRequest!!.imageUri,
+                                            contentDescription = "صورة العطل المرفقة",
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(180.dp)
+                                                .clip(RoundedCornerShape(8.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1923,33 +2133,82 @@ fun RequestDetailDialog(
                                                         .fillMaxWidth()
                                                         .background(
                                                             if (isMe) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) else Color(0xFFE8F0FE),
-                                                            RoundedCornerShape(8.dp)
-                                                        )
-                                                        .clickable {
-                                                            Toast.makeText(context, "جاري فتح خرائط Google لتوجيهك للموقع...", Toast.LENGTH_SHORT).show()
-                                                        }
-                                                        .padding(8.dp)
+                                                             RoundedCornerShape(8.dp)
+                                                         )
+                                                         .clickable {
+                                                             Toast.makeText(context, "جاري فتح خرائط Google لتوجيهك للموقع...", Toast.LENGTH_SHORT).show()
+                                                         }
+                                                         .padding(8.dp)
+                                                 ) {
+                                                     Row(verticalAlignment = Alignment.CenterVertically) {
+                                                         Icon(
+                                                             imageVector = Icons.Default.Map,
+                                                             contentDescription = "موقع",
+                                                             tint = if (isMe) Color.White else MaterialTheme.colorScheme.primary,
+                                                             modifier = Modifier.size(24.dp)
+                                                         )
+                                                         Spacer(modifier = Modifier.width(8.dp))
+                                                         Column {
+                                                             Text(
+                                                                 "الموقع الجغرافي",
+                                                                 fontWeight = FontWeight.Bold,
+                                                                 fontSize = 13.sp,
+                                                                 color = if (isMe) Color.White else Color.Black
+                                                             )
+                                                             Text(
+                                                                 "عرض الموقع على الخريطة",
+                                                                 fontSize = 11.sp,
+                                                                 color = if (isMe) Color.White.copy(alpha = 0.8f) else Color.DarkGray
+                                                             )
+                                                         }
+                                                     }
+                                                 }
+                                             }
+                                             "IMAGE" -> {
+                                                var showImageDetail by remember { mutableStateOf(false) }
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(150.dp)
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(Color.LightGray)
+                                                        .clickable { showImageDetail = true }
                                                 ) {
-                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.Map,
-                                                            contentDescription = "موقع",
-                                                            tint = if (isMe) Color.White else MaterialTheme.colorScheme.primary,
-                                                            modifier = Modifier.size(24.dp)
-                                                        )
-                                                        Spacer(modifier = Modifier.width(8.dp))
-                                                        Column {
-                                                            Text(
-                                                                "الموقع الجغرافي",
-                                                                fontWeight = FontWeight.Bold,
-                                                                fontSize = 13.sp,
-                                                                color = if (isMe) Color.White else Color.Black
-                                                            )
-                                                            Text(
-                                                                "عرض الموقع على الخريطة",
-                                                                fontSize = 11.sp,
-                                                                color = if (isMe) Color.White.copy(alpha = 0.8f) else Color.DarkGray
-                                                            )
+                                                    AsyncImage(
+                                                        model = msg.content,
+                                                        contentDescription = "صورة مرسلة",
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        contentScale = ContentScale.Crop
+                                                    )
+                                                }
+
+                                                if (showImageDetail) {
+                                                    Dialog(onDismissRequest = { showImageDetail = false }) {
+                                                        Card(
+                                                            shape = RoundedCornerShape(16.dp),
+                                                            modifier = Modifier.padding(16.dp)
+                                                        ) {
+                                                            Column(
+                                                                modifier = Modifier.padding(16.dp),
+                                                                horizontalAlignment = Alignment.CenterHorizontally
+                                                            ) {
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .fillMaxWidth()
+                                                                        .height(300.dp)
+                                                                        .clip(RoundedCornerShape(8.dp))
+                                                                ) {
+                                                                    AsyncImage(
+                                                                        model = msg.content,
+                                                                        contentDescription = "معاينة الصورة",
+                                                                        modifier = Modifier.fillMaxSize(),
+                                                                        contentScale = ContentScale.Fit
+                                                                    )
+                                                                }
+                                                                Spacer(modifier = Modifier.height(16.dp))
+                                                                Button(onClick = { showImageDetail = false }) {
+                                                                    Text("إغلاق")
+                                                                }
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -1989,7 +2248,7 @@ fun RequestDetailDialog(
                                                         }
                                                     }
                                                 }
-
+ 
                                                 if (showImageDetail) {
                                                     Dialog(onDismissRequest = { showImageDetail = false }) {
                                                         Card(
@@ -2050,8 +2309,8 @@ fun RequestDetailDialog(
                     IconButton(onClick = { viewModel.sendMessage("📍 [مشاركة الموقع الحالي على الخريطة]", "LOCATION") }) {
                         Icon(Icons.Default.LocationOn, "موقع", tint = MaterialTheme.colorScheme.primary)
                     }
-                    IconButton(onClick = { viewModel.sendMessage("📸 [صورة مرفقة لمكان المشكلة]", "IMAGE_PLACEHOLDER") }) {
-                        Icon(Icons.Default.PhotoCamera, "كاميرا", tint = Color.Gray)
+                    IconButton(onClick = { chatImageLauncher.launch("image/*") }) {
+                        Icon(Icons.Default.PhotoCamera, "كاميرا", tint = MaterialTheme.colorScheme.primary)
                     }
                     OutlinedTextField(
                         value = chatText,
@@ -2189,13 +2448,13 @@ fun NeighborhoodFeedContent(viewModel: SouqViewModel) {
             ) {
                 Column {
                     Text(
-                        "منشورات حيك (${currentUser?.neighborhood ?: "حي الياسمين"})",
+                        "المنشورات العامة للسوق",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
                     Text(
-                        "تواصل مع جيرانك، اطلب توصية لفني، أو شارك نصائح عامة لأهل الحي.",
+                        "تواصل في السوق، اطلب توصية لفني، أو تصفح الإعلانات والخدمات المتاحة.",
                         color = Color.White.copy(alpha = 0.8f),
                         fontSize = 12.sp
                     )
@@ -2267,6 +2526,19 @@ fun NeighborhoodFeedContent(viewModel: SouqViewModel) {
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(post.content, fontSize = 13.sp, color = Color.DarkGray)
+
+                        if (!post.imageUri.isNullOrEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            AsyncImage(
+                                model = post.imageUri,
+                                contentDescription = "صورة المنشور المرفقة",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(12.dp))
                         Divider()
@@ -2412,7 +2684,7 @@ fun NeighborhoodJobsContent(viewModel: SouqViewModel) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "دليل وظائف وفرص عمل جيران سوق",
+                        text = "دليل الوظائف وفرص العمل بالسوق",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -2420,7 +2692,7 @@ fun NeighborhoodJobsContent(viewModel: SouqViewModel) {
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "دليل محلي متكامل على طريقة مرجان لتبادل الخبرات وتوظيف أهل الحي مباشرة بدون عمولات.",
+                    text = "دليل متكامل لتوظيف الكفاءات والخبرات وتبادل العمل بالسوق مباشرة وبدون عمولات.",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                     lineHeight = 16.sp
@@ -2836,15 +3108,38 @@ fun NeighborhoodChannelsContent(viewModel: SouqViewModel) {
     val activeChannelId by viewModel.activeChannelId.collectAsState()
     val messages by viewModel.activeChannelMessages.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
+    val customChannels by viewModel.customChannels.collectAsState()
 
     var textInput by remember { mutableStateOf("") }
 
-    val channelsList = listOf(
-        NeighborhoodChannel("general", "المجلس العام للحي", "أحاديث ونقاشات الجيران الودية اليومية", Icons.Default.Forum, Color(0xFF4CAF50)),
-        NeighborhoodChannel("news", "أخبار وتنبيهات الحي", "أخبار وتنبيهات مجلس إدارة وملاك الحي الرسمية", Icons.Default.Campaign, Color(0xFFFF9800)),
-        NeighborhoodChannel("services", "تجارب الصيانة والخدمات", "استشارات وحلول مشاكل صيانة منازل الحي", Icons.Default.Handyman, Color(0xFF2196F3)),
+    val defaultChannels = listOf(
+        NeighborhoodChannel("general", "المجلس العام للسوق", "أحاديث ونقاشات السوق اليومية", Icons.Default.Forum, Color(0xFF4CAF50)),
+        NeighborhoodChannel("news", "أخبار وإعلانات السوق", "أخبار وإعلانات إدارة السوق الرسمية", Icons.Default.Campaign, Color(0xFFFF9800)),
+        NeighborhoodChannel("services", "تجارب الصيانة والخدمات", "استشارات وحلول مشاكل الصيانة والخدمات المتنوعة", Icons.Default.Handyman, Color(0xFF2196F3)),
         NeighborhoodChannel("market", "حراج وبيع وشراء", "تبادل وبيع السلع والمنتجات المستعملة والجديدة", Icons.Default.LocalOffer, Color(0xFFE91E63))
     )
+
+    val channelsList = defaultChannels + customChannels.map { cc ->
+        NeighborhoodChannel(
+            id = cc.id,
+            title = cc.title,
+            description = cc.description,
+            icon = when (cc.iconName) {
+                "forum" -> Icons.Default.Forum
+                "campaign" -> Icons.Default.Campaign
+                "handyman" -> Icons.Default.Handyman
+                "local_offer" -> Icons.Default.LocalOffer
+                "groups" -> Icons.Default.Groups
+                "chat" -> Icons.Default.Chat
+                else -> Icons.Default.Forum
+            },
+            color = try {
+                Color(android.graphics.Color.parseColor(cc.colorHex))
+            } catch (e: Exception) {
+                Color(0xFF4CAF50)
+            }
+        )
+    }
 
     val currentChannel = channelsList.find { it.id == activeChannelId } ?: channelsList.first()
 
@@ -2855,7 +3150,7 @@ fun NeighborhoodChannelsContent(viewModel: SouqViewModel) {
     ) {
         // Horizontal channels selection row
         Text(
-            text = "اختر قناة نقاش للمشاركة مع جيرانك:",
+            text = "اختر قناة نقاش للمشاركة والتواصل بالسوق:",
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -3072,7 +3367,7 @@ fun NeighborhoodChannelsContent(viewModel: SouqViewModel) {
                 OutlinedTextField(
                     value = textInput,
                     onValueChange = { textInput = it },
-                    placeholder = { Text("اكتب رسالتك للجيران في قناة #${currentChannel.title}...", fontSize = 12.sp) },
+                    placeholder = { Text("اكتب رسالتك في قناة #${currentChannel.title}...", fontSize = 12.sp) },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -3887,7 +4182,7 @@ fun ProfileScreen(viewModel: SouqViewModel) {
                         ProfileInfoRow(Icons.Default.Person, "الاسم الكامل", currentUser?.name ?: "")
                         ProfileInfoRow(Icons.Default.Phone, "رقم الجوال", currentUser?.phoneNumber ?: "")
                         ProfileInfoRow(Icons.Default.LocationCity, "المدينة والحي", "${currentUser?.city} - ${currentUser?.neighborhood}")
-                        ProfileInfoRow(Icons.Default.Info, "النبذة الشخصية", currentUser?.bio?.ifEmpty { "لا توجد نبذة حالياً. اكتب نبذة تعريفية ليتعرف عليك الجيران!" } ?: "")
+                        ProfileInfoRow(Icons.Default.Info, "النبذة الشخصية", currentUser?.bio?.ifEmpty { "لا توجد نبذة حالياً. اكتب نبذة تعريفية ليتعرف عليك الآخرون بالسوق!" } ?: "")
 
                         if (currentUser?.role == "TECHNICIAN") {
                             ProfileInfoRow(Icons.Default.Handyman, "التخصص والمهنة", currentUser?.profession ?: "")
@@ -3962,7 +4257,7 @@ fun ProfileScreen(viewModel: SouqViewModel) {
                         OutlinedTextField(
                             value = bio,
                             onValueChange = { bio = it },
-                            label = { Text("اكتب نبذة عنك للجيران") },
+                            label = { Text("اكتب نبذة تعريفية قصيرة عنك") },
                             modifier = Modifier.fillMaxWidth().testTag("edit_bio_input"),
                             maxLines = 3
                         )
@@ -4230,6 +4525,17 @@ fun CreateRequestDialog(
     var urgency by remember { mutableStateOf("متوسط") }
     var timeRequired by remember { mutableStateOf("في أقرب وقت") }
     var neighborhood by remember { mutableStateOf(currentUser?.neighborhood ?: "") }
+    var selectedImageUri by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let { selectedUri ->
+            val localPath = saveUriToInternalStorage(context, selectedUri)
+            selectedImageUri = localPath
+        }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(shape = RoundedCornerShape(20.dp), modifier = Modifier.padding(16.dp)) {
@@ -4291,6 +4597,46 @@ fun CreateRequestDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("إرفاق صورة للمشكلة (اختياري):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+                if (selectedImageUri != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.LightGray)
+                    ) {
+                        AsyncImage(
+                            model = selectedImageUri,
+                            contentDescription = "صورة المشكلة",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        IconButton(
+                            onClick = { selectedImageUri = null },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                .size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, "إزالة", tint = Color.White, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = { launcher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("اختر صورة من المعرض", fontSize = 12.sp)
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
@@ -4305,6 +4651,7 @@ fun CreateRequestDialog(
                                     urgency = urgency,
                                     timeRequired = timeRequired,
                                     neighborhood = neighborhood,
+                                    imageUri = selectedImageUri,
                                     onSuccess = onDismiss
                                 )
                             }
@@ -4326,19 +4673,70 @@ fun CreatePostDialog(
     onDismiss: () -> Unit
 ) {
     var content by remember { mutableStateOf("") }
+    var selectedImageUri by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let { selectedUri ->
+            val localPath = saveUriToInternalStorage(context, selectedUri)
+            selectedImageUri = localPath
+        }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(shape = RoundedCornerShape(20.dp), modifier = Modifier.padding(16.dp)) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text("كتابة منشور جديد في الحي", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.primary)
+                Text("كتابة منشور جديد بالسوق", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = content,
                     onValueChange = { content = it },
-                    label = { Text("ماذا تريد أن تشارك مع جيرانك؟") },
+                    label = { Text("ماذا تريد أن تشارك في السوق؟") },
                     modifier = Modifier.fillMaxWidth().height(120.dp).testTag("post_desc_field")
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Text("إرفاق صورة للمنشور (اختياري):", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+                if (selectedImageUri != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.LightGray)
+                    ) {
+                        AsyncImage(
+                            model = selectedImageUri,
+                            contentDescription = "صورة المنشور",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        IconButton(
+                            onClick = { selectedImageUri = null },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                .size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Delete, "إزالة", tint = Color.White, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = { launcher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.PhotoCamera, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("اختر صورة من المعرض", fontSize = 12.sp)
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -4348,7 +4746,7 @@ fun CreatePostDialog(
                     Button(
                         onClick = {
                             if (content.isNotEmpty()) {
-                                viewModel.createPost(content, onDismiss)
+                                viewModel.createPost(content, selectedImageUri, onDismiss)
                             }
                         },
                         modifier = Modifier.weight(1f).testTag("submit_post_button")
@@ -4598,11 +4996,11 @@ fun CreateChannelDialog(
     
     // Icon selection
     val icons = listOf(
-        Pair("forum", "منتدى ونقاش جيران"),
+        Pair("forum", "منتدى ونقاش عام"),
         Pair("campaign", "أخبار وإعلانات"),
         Pair("handyman", "شؤون الصيانة والمهن"),
         Pair("local_offer", "بيع وشراء وتبادل"),
-        Pair("groups", "أنشطة وفعاليات الحي"),
+        Pair("groups", "أنشطة وفعاليات عامة"),
         Pair("chat", "نقاشات مفتوحة")
     )
     var selectedIconIndex by remember { mutableStateOf(0) }
@@ -4645,7 +5043,7 @@ fun CreateChannelDialog(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "أنشئ مساحة نقاش تفاعلية تجمع جيران الحي حول موضوع أو اهتمام مشترك.",
+                    "أنشئ مساحة نقاش تفاعلية تجمع رواد السوق حول موضوع أو اهتمام مشترك.",
                     fontSize = 11.sp,
                     color = Color.Gray,
                     lineHeight = 16.sp
@@ -4788,13 +5186,21 @@ fun CreateChannelDialog(
 // --- Settings Dialog ---
 @Composable
 fun SettingsDialog(
+    viewModel: SouqViewModel,
     onDismiss: () -> Unit
 ) {
-    var isDarkModeEnabled by remember { mutableStateOf(false) }
-    var isNotificationsEnabled by remember { mutableStateOf(true) }
-    var isGpsLocationEnabled by remember { mutableStateOf(true) }
-    var appLanguage by remember { mutableStateOf("العربية") }
+    val currentDarkMode by viewModel.isDarkMode.collectAsState()
+    val currentNotificationsEnabled by viewModel.isNotificationsEnabled.collectAsState()
+    val currentGpsLocationEnabled by viewModel.isGpsLocationEnabled.collectAsState()
+    val currentAppLanguage by viewModel.appLanguage.collectAsState()
+
+    var isDarkModeEnabled by remember(currentDarkMode) { mutableStateOf(currentDarkMode) }
+    var isNotificationsEnabled by remember(currentNotificationsEnabled) { mutableStateOf(currentNotificationsEnabled) }
+    var isGpsLocationEnabled by remember(currentGpsLocationEnabled) { mutableStateOf(currentGpsLocationEnabled) }
+    var appLanguage by remember(currentAppLanguage) { mutableStateOf(currentAppLanguage) }
     var isLanguageDropdownExpanded by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -4919,6 +5325,102 @@ fun SettingsDialog(
                     }
                 }
 
+                Divider()
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Supabase Sync Section
+                val syncStatus by viewModel.supabaseSyncStatus.collectAsState()
+                val statusMsg by viewModel.supabaseStatusMessage.collectAsState()
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = when (syncStatus) {
+                                SupabaseSyncStatus.CONNECTED -> Color(0xFFE8F5E9)
+                                SupabaseSyncStatus.SYNCING -> Color(0xFFE3F2FD)
+                                SupabaseSyncStatus.TABLE_NOT_FOUND -> Color(0xFFFFF3E0)
+                                SupabaseSyncStatus.ERROR -> Color(0xFFFFEBEE)
+                                else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            },
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(12.dp)
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = when (syncStatus) {
+                                    SupabaseSyncStatus.CONNECTED -> Icons.Default.DoneAll
+                                    SupabaseSyncStatus.SYNCING -> Icons.Default.Refresh
+                                    SupabaseSyncStatus.TABLE_NOT_FOUND -> Icons.Default.Warning
+                                    SupabaseSyncStatus.ERROR -> Icons.Default.Warning
+                                    else -> Icons.Default.Info
+                                },
+                                contentDescription = null,
+                                tint = when (syncStatus) {
+                                    SupabaseSyncStatus.CONNECTED -> Color(0xFF2E7D32)
+                                    SupabaseSyncStatus.SYNCING -> Color(0xFF1565C0)
+                                    SupabaseSyncStatus.TABLE_NOT_FOUND -> Color(0xFFEF6C00)
+                                    SupabaseSyncStatus.ERROR -> Color(0xFFC62828)
+                                    else -> Color.Gray
+                                },
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "مزامنة السحاب (Supabase)",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = when (syncStatus) {
+                                    SupabaseSyncStatus.CONNECTED -> Color(0xFF2E7D32)
+                                    SupabaseSyncStatus.SYNCING -> Color(0xFF1565C0)
+                                    SupabaseSyncStatus.TABLE_NOT_FOUND -> Color(0xFFEF6C00)
+                                    SupabaseSyncStatus.ERROR -> Color(0xFFC62828)
+                                    else -> Color.DarkGray
+                                }
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = statusMsg,
+                            fontSize = 11.sp,
+                            color = Color.DarkGray
+                        )
+                        if (syncStatus == SupabaseSyncStatus.TABLE_NOT_FOUND) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "يرجى إنشاء جداول (users, channel_messages, neighborhood_posts, service_requests) في Supabase مع تمكين صلاحيات القراءة والكتابة (RLS) للتشغيل الكامل.",
+                                fontSize = 9.sp,
+                                color = Color(0xFFD84315),
+                                lineHeight = 12.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "مفتاح الربط مفعل تلقائياً",
+                                fontSize = 10.sp,
+                                color = Color.Gray
+                            )
+                            TextButton(
+                                onClick = { viewModel.syncAll() },
+                                modifier = Modifier.height(32.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                            ) {
+                                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("تحديث المزامنة الآن", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
@@ -4926,7 +5428,16 @@ fun SettingsDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     Button(
-                        onClick = onDismiss,
+                        onClick = {
+                            viewModel.updateSettings(
+                                darkMode = isDarkModeEnabled,
+                                notifications = isNotificationsEnabled,
+                                gps = isGpsLocationEnabled,
+                                language = appLanguage
+                            )
+                            Toast.makeText(context, "تم حفظ وتطبيق الإعدادات بنجاح!", Toast.LENGTH_SHORT).show()
+                            onDismiss()
+                        },
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text("حفظ وإغلاق", fontWeight = FontWeight.Bold)

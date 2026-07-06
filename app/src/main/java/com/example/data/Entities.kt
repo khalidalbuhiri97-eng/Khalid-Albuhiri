@@ -42,7 +42,8 @@ data class ServiceRequestEntity(
     val lng: Double,
     val createdAt: Long = System.currentTimeMillis(),
     val ratingStars: Int = 0,
-    val ratingComment: String? = null
+    val ratingComment: String? = null,
+    val imageUri: String? = null
 )
 
 @Entity(tableName = "neighborhood_posts")
@@ -58,7 +59,8 @@ data class PostEntity(
     val likesCount: Int = 0,
     val commentsCount: Int = 0,
     val isLikedByMe: Boolean = false,
-    val authorAvatarUri: String? = null
+    val authorAvatarUri: String? = null,
+    val imageUri: String? = null
 )
 
 @Entity(tableName = "offers")
