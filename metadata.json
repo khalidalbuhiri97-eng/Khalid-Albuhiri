@@ -1,0 +1,6 @@
+{
+  "name": "سوق",
+  "description": "منصة محلية لربط العملاء بأقرب مقدمي الخدمات والمهنيين في الحي أو القرية",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
