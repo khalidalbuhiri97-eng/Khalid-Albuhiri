@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,6 +37,9 @@ import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
@@ -644,208 +648,431 @@ fun MainContainerScreen(viewModel: SouqViewModel) {
     val currentUser by viewModel.currentUser.collectAsState()
     val allUsers by viewModel.allUsers.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
+    val subTab by viewModel.neighborhoodSubTab.collectAsState()
 
     var showCreateRequestDialog by remember { mutableStateOf(false) }
     var showCreatePostDialog by remember { mutableStateOf(false) }
     var showCreateOfferDialog by remember { mutableStateOf(false) }
 
+    // Drawer and Sidebar related states
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    var showCreateAdDialog by remember { mutableStateOf(false) }
+    var showCreateChannelDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
+
     val scope = rememberCoroutineScope()
     val unreadNotifications = notifications.filter { !it.isRead }.size
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Storefront, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("سوق", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                        }
-                    },
-                    navigationIcon = {
-                        // Role switching dropdown simulation (Superb UX for testing and demonstrating)
-                        var expandedSwitch by remember { mutableStateOf(false) }
-                        Box {
-                            IconButton(onClick = { expandedSwitch = true }, modifier = Modifier.testTag("role_switcher")) {
-                                Icon(Icons.Default.SwapHoriz, "تبديل الحساب")
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet(
+                    modifier = Modifier.width(300.dp),
+                    drawerContainerColor = MaterialTheme.colorScheme.surface,
+                    drawerTonalElevation = 4.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
+                    ) {
+                        // Drawer Header (Profile Information)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                                        colors = listOf(
+                                            MaterialTheme.colorScheme.primary,
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+                                        )
+                                    ),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .padding(20.dp)
+                        ) {
+                            Column {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .background(Color.White.copy(alpha = 0.25f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (!currentUser?.avatarUri.isNullOrEmpty()) {
+                                        AsyncImage(
+                                            model = currentUser?.avatarUri,
+                                            contentDescription = "صورة الحساب",
+                                            modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Text(
+                                            text = currentUser?.name?.take(1) ?: "",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 20.sp
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = currentUser?.name ?: "",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "${currentUser?.neighborhood} - ${currentUser?.city}",
+                                    fontSize = 12.sp,
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = when(currentUser?.role) {
+                                            "CUSTOMER" -> "عميل / جار"
+                                            "TECHNICIAN" -> "فني صيانة (${currentUser?.profession})"
+                                            "ADMIN" -> "مشرف الحي"
+                                            else -> "عضو"
+                                        },
+                                        fontSize = 10.sp,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
-                            DropdownMenu(expanded = expandedSwitch, onDismissRequest = { expandedSwitch = false }) {
-                                Text("محاكاة تبديل الحسابات:", modifier = Modifier.padding(8.dp), fontSize = 12.sp, color = Color.Gray)
-                                Divider()
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Drawer Options List
+                        Text(
+                            text = "الخيارات والإعلانات:",
+                            fontSize = 11.sp,
+                            color = Color.Gray,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+
+                        // 1. Create Advertisement
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.Campaign, null, tint = MaterialTheme.colorScheme.primary) },
+                            label = { Text("إنشاء إعلان مميز", fontWeight = FontWeight.Bold) },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                showCreateAdDialog = true
+                            },
+                            badge = {
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFE8F5E9), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text("جديد", color = Color(0xFF2E7D32), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        )
+
+                        // 2. Create Discussion Channel
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.AddCircle, null, tint = MaterialTheme.colorScheme.secondary) },
+                            label = { Text("إنشاء قناة نقاش جديدة", fontWeight = FontWeight.Bold) },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                showCreateChannelDialog = true
+                            }
+                        )
+
+                        // 3. Application Settings
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.Settings, null, tint = Color.DarkGray) },
+                            label = { Text("إعدادات التطبيق", fontWeight = FontWeight.Bold) },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                showSettingsDialog = true
+                            }
+                        )
+
+                        Divider(modifier = Modifier.padding(vertical = 12.dp))
+
+                        // Role Switching Dropdown Simulation integrated here for spectacular UX
+                        Text(
+                            text = "محاكاة الحسابات (عرض سريع):",
+                            fontSize = 11.sp,
+                            color = Color.Gray,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+
+                        var expandedSwitch by remember { mutableStateOf(false) }
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = { expandedSwitch = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            ) {
+                                Icon(Icons.Default.SwapHoriz, null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("تبديل الحساب الحالي", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+
+                            DropdownMenu(
+                                expanded = expandedSwitch,
+                                onDismissRequest = { expandedSwitch = false },
+                                modifier = Modifier.width(260.dp)
+                            ) {
                                 allUsers.forEach { u ->
                                     DropdownMenuItem(
                                         text = {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 Box(modifier = Modifier.size(10.dp).background(getAvatarColor(u.avatarColor), CircleShape))
                                                 Spacer(modifier = Modifier.width(8.dp))
-                                                Text("${u.name} (${when(u.role){"CUSTOMER"->"عميل" "TECHNICIAN"->"فني" else -> "مشرف"}})")
+                                                Text(
+                                                    text = "${u.name} (${when(u.role){"CUSTOMER"->"عميل" "TECHNICIAN"->"فني" else -> "مشرف"}})",
+                                                    fontSize = 12.sp
+                                                )
                                             }
                                         },
                                         onClick = {
                                             viewModel.loginAsUser(u)
                                             expandedSwitch = false
+                                            scope.launch { drawerState.close() }
                                         }
                                     )
                                 }
                             }
                         }
-                    },
-                    actions = {
-                        // Quick badge for notifications
-                        Box {
-                            IconButton(onClick = {
-                                viewModel.markNotificationsRead()
-                                selectedTab = 4 // Navigate to Profile / Settings where notifications are visible or display dialog
-                            }) {
-                                Icon(Icons.Default.Notifications, "الإشعارات")
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        // Logout button at bottom
+                        Button(
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                viewModel.logout()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.ExitToApp, null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("تسجيل الخروج", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        ) {
+            Scaffold(
+                topBar = {
+                    CenterAlignedTopAppBar(
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Storefront, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("سوق", fontWeight = FontWeight.Bold, fontSize = 20.sp)
                             }
-                            if (unreadNotifications > 0) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(6.dp)
-                                        .size(18.dp)
-                                        .background(MaterialTheme.colorScheme.error, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = unreadNotifications.toString(),
-                                        color = Color.White,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = {
+                                scope.launch {
+                                    if (drawerState.isClosed) drawerState.open() else drawerState.close()
+                                }
+                            }) {
+                                Icon(Icons.Default.Menu, "القائمة")
+                            }
+                        },
+                        actions = {
+                            // Quick badge for notifications
+                            Box {
+                                IconButton(onClick = {
+                                    viewModel.markNotificationsRead()
+                                    selectedTab = 4 // Navigate to Profile / Settings where notifications are visible or display dialog
+                                }) {
+                                    Icon(Icons.Default.Notifications, "الإشعارات")
+                                }
+                                if (unreadNotifications > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(6.dp)
+                                            .size(18.dp)
+                                            .background(MaterialTheme.colorScheme.error, CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = unreadNotifications.toString(),
+                                            color = Color.White,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            titleContentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+                },
+                bottomBar = {
+                    NavigationBar(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 8.dp
+                    ) {
+                        val tabs = mutableListOf(
+                            Triple("الرئيسية", Icons.Default.Home, Icons.Outlined.Home),
+                            Triple("طلباتي", Icons.Default.Assignment, Icons.Outlined.Assignment),
+                            Triple("الحي", Icons.Default.Forum, Icons.Outlined.Forum),
+                            Triple("العروض", Icons.Default.LocalOffer, Icons.Outlined.LocalOffer),
+                            Triple("الحساب", Icons.Default.Person, Icons.Outlined.Person)
+                        )
+
+                        // Inject admin tab if current user is admin
+                        if (currentUser?.role == "ADMIN") {
+                            tabs.add(2, Triple("الإدارة", Icons.Default.AdminPanelSettings, Icons.Outlined.AdminPanelSettings))
+                        }
+
+                        tabs.forEachIndexed { index, tab ->
+                            NavigationBarItem(
+                                selected = selectedTab == index,
+                                onClick = { selectedTab = index },
+                                icon = {
+                                    Icon(
+                                        imageVector = if (selectedTab == index) tab.second else tab.third,
+                                        contentDescription = tab.first
                                     )
+                                },
+                                label = { Text(tab.first, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                            )
+                        }
+                    }
+                },
+                floatingActionButton = {
+                    // Show action FAB depending on active role and tab
+                    when {
+                        selectedTab == 0 && currentUser?.role == "CUSTOMER" -> {
+                            ExtendedFloatingActionButton(
+                                onClick = { showCreateRequestDialog = true },
+                                icon = { Icon(Icons.Default.Add, null) },
+                                text = { Text("طلب خدمة") },
+                                modifier = Modifier.testTag("create_request_fab")
+                            )
+                        }
+                        selectedTab == 2 && currentUser?.role != "ADMIN" && subTab == 0 -> { // Neighborhood Social - ONLY Feed!
+                            ExtendedFloatingActionButton(
+                                onClick = { showCreatePostDialog = true },
+                                icon = { Icon(Icons.Default.Create, null) },
+                                text = { Text("منشور") },
+                                modifier = Modifier.testTag("create_post_fab")
+                            )
+                        }
+                        selectedTab == 3 && currentUser?.role == "TECHNICIAN" -> { // Tech Offers
+                            ExtendedFloatingActionButton(
+                                onClick = { showCreateOfferDialog = true },
+                                icon = { Icon(Icons.Default.AddCircle, null) },
+                                text = { Text("إعلان عرض") },
+                                modifier = Modifier.testTag("create_offer_fab")
+                            )
+                        }
+                    }
+                }
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    // Main Tab Routing
+                    AnimatedContent(
+                        targetState = selectedTab,
+                        transitionSpec = {
+                            fadeIn() togetherWith fadeOut()
+                        },
+                        label = "TabTransition"
+                    ) { targetTab ->
+                        val adjustedTab = if (currentUser?.role != "ADMIN" && targetTab >= 2) targetTab else targetTab
+                        when {
+                            currentUser?.role == "ADMIN" -> {
+                                when (targetTab) {
+                                    0 -> HomeScreen(viewModel, onNavigateToRequests = { selectedTab = 1 })
+                                    1 -> RequestsScreen(viewModel)
+                                    2 -> AdminScreen(viewModel)
+                                    3 -> NeighborhoodScreen(viewModel)
+                                    4 -> OffersScreen(viewModel)
+                                    5 -> ProfileScreen(viewModel)
+                                }
+                            }
+                            else -> {
+                                when (targetTab) {
+                                    0 -> HomeScreen(viewModel, onNavigateToRequests = { selectedTab = 1 })
+                                    1 -> RequestsScreen(viewModel)
+                                    2 -> NeighborhoodScreen(viewModel)
+                                    3 -> OffersScreen(viewModel)
+                                    4 -> ProfileScreen(viewModel)
                                 }
                             }
                         }
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface
+                    }
+                }
+
+                // Dialogs
+                if (showCreateRequestDialog) {
+                    CreateRequestDialog(
+                        viewModel = viewModel,
+                        onDismiss = { showCreateRequestDialog = false }
                     )
-                )
-            },
-            bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp
-                ) {
-                    val tabs = mutableListOf(
-                        Triple("الرئيسية", Icons.Default.Home, Icons.Outlined.Home),
-                        Triple("طلباتي", Icons.Default.Assignment, Icons.Outlined.Assignment),
-                        Triple("الحي", Icons.Default.Forum, Icons.Outlined.Forum),
-                        Triple("العروض", Icons.Default.LocalOffer, Icons.Outlined.LocalOffer),
-                        Triple("الحساب", Icons.Default.Person, Icons.Outlined.Person)
+                }
+
+                if (showCreatePostDialog) {
+                    CreatePostDialog(
+                        viewModel = viewModel,
+                        onDismiss = { showCreatePostDialog = false }
                     )
-
-                    // Inject admin tab if current user is admin
-                    if (currentUser?.role == "ADMIN") {
-                        tabs.add(2, Triple("الإدارة", Icons.Default.AdminPanelSettings, Icons.Outlined.AdminPanelSettings))
-                    }
-
-                    tabs.forEachIndexed { index, tab ->
-                        NavigationBarItem(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            icon = {
-                                Icon(
-                                    imageVector = if (selectedTab == index) tab.second else tab.third,
-                                    contentDescription = tab.first
-                                )
-                            },
-                            label = { Text(tab.first, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
-                        )
-                    }
                 }
-            },
-            floatingActionButton = {
-                // Show action FAB depending on active role and tab
-                when {
-                    selectedTab == 0 && currentUser?.role == "CUSTOMER" -> {
-                        ExtendedFloatingActionButton(
-                            onClick = { showCreateRequestDialog = true },
-                            icon = { Icon(Icons.Default.Add, null) },
-                            text = { Text("طلب خدمة") },
-                            modifier = Modifier.testTag("create_request_fab")
-                        )
-                    }
-                    selectedTab == 2 && currentUser?.role != "ADMIN" -> { // Neighborhood Social
-                        ExtendedFloatingActionButton(
-                            onClick = { showCreatePostDialog = true },
-                            icon = { Icon(Icons.Default.Create, null) },
-                            text = { Text("منشور") },
-                            modifier = Modifier.testTag("create_post_fab")
-                        )
-                    }
-                    selectedTab == 3 && currentUser?.role == "TECHNICIAN" -> { // Tech Offers
-                        ExtendedFloatingActionButton(
-                            onClick = { showCreateOfferDialog = true },
-                            icon = { Icon(Icons.Default.AddCircle, null) },
-                            text = { Text("إعلان عرض") },
-                            modifier = Modifier.testTag("create_offer_fab")
-                        )
-                    }
+
+                if (showCreateOfferDialog) {
+                    CreateOfferDialog(
+                        viewModel = viewModel,
+                        onDismiss = { showCreateOfferDialog = false }
+                    )
                 }
-            }
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                // Main Tab Routing
-                AnimatedContent(
-                    targetState = selectedTab,
-                    transitionSpec = {
-                        fadeIn() togetherWith fadeOut()
-                    },
-                    label = "TabTransition"
-                ) { targetTab ->
-                    val adjustedTab = if (currentUser?.role != "ADMIN" && targetTab >= 2) targetTab else targetTab
-                    when {
-                        currentUser?.role == "ADMIN" -> {
-                            when (targetTab) {
-                                0 -> HomeScreen(viewModel, onNavigateToRequests = { selectedTab = 1 })
-                                1 -> RequestsScreen(viewModel)
-                                2 -> AdminScreen(viewModel)
-                                3 -> NeighborhoodScreen(viewModel)
-                                4 -> OffersScreen(viewModel)
-                                5 -> ProfileScreen(viewModel)
-                            }
-                        }
-                        else -> {
-                            when (targetTab) {
-                                0 -> HomeScreen(viewModel, onNavigateToRequests = { selectedTab = 1 })
-                                1 -> RequestsScreen(viewModel)
-                                2 -> NeighborhoodScreen(viewModel)
-                                3 -> OffersScreen(viewModel)
-                                4 -> ProfileScreen(viewModel)
-                            }
-                        }
-                    }
+
+                if (showCreateAdDialog) {
+                    CreateAdvertisementDialog(
+                        viewModel = viewModel,
+                        onDismiss = { showCreateAdDialog = false }
+                    )
                 }
-            }
 
-            // Dialogs
-            if (showCreateRequestDialog) {
-                CreateRequestDialog(
-                    viewModel = viewModel,
-                    onDismiss = { showCreateRequestDialog = false }
-                )
-            }
+                if (showCreateChannelDialog) {
+                    CreateChannelDialog(
+                        viewModel = viewModel,
+                        onDismiss = { showCreateChannelDialog = false }
+                    )
+                }
 
-            if (showCreatePostDialog) {
-                CreatePostDialog(
-                    viewModel = viewModel,
-                    onDismiss = { showCreatePostDialog = false }
-                )
-            }
-
-            if (showCreateOfferDialog) {
-                CreateOfferDialog(
-                    viewModel = viewModel,
-                    onDismiss = { showCreateOfferDialog = false }
-                )
+                if (showSettingsDialog) {
+                    SettingsDialog(
+                        onDismiss = { showSettingsDialog = false }
+                    )
+                }
             }
         }
     }
@@ -898,12 +1125,23 @@ fun HomeScreen(
                                 .background(getAvatarColor(currentUser?.avatarColor ?: 0), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = currentUser?.name?.take(1) ?: "ع",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
-                            )
+                            if (!currentUser?.avatarUri.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = currentUser!!.avatarUri,
+                                    contentDescription = "الصورة الشخصية",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Text(
+                                    text = currentUser?.name?.take(1) ?: "ع",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
@@ -1140,12 +1378,23 @@ fun HomeScreen(
                                 .background(getAvatarColor(tech.avatarColor), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = tech.name.take(1),
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 20.sp
-                            )
+                            if (!tech.avatarUri.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = tech.avatarUri,
+                                    contentDescription = "صورة الفني",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Text(
+                                    text = tech.name.take(1),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
@@ -1209,7 +1458,18 @@ fun HomeScreen(
                                         .background(getAvatarColor(tech.avatarColor), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(tech.name.take(1), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                                    if (!tech.avatarUri.isNullOrEmpty()) {
+                                        AsyncImage(
+                                            model = tech.avatarUri,
+                                            contentDescription = "صورة الفني",
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Text(tech.name.take(1), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                                 Spacer(modifier = Modifier.height(12.dp))
                                 Text(tech.name, fontWeight = FontWeight.Bold, fontSize = 18.sp)
@@ -1643,7 +1903,7 @@ fun RequestDetailDialog(
                                     colors = CardDefaults.cardColors(
                                         containerColor = if (isMe) MaterialTheme.colorScheme.primary else Color(0xFFECEFF1)
                                     ),
-                                    modifier = Modifier.widthIn(max = 240.dp)
+                                    modifier = Modifier.widthIn(max = 260.dp)
                                 ) {
                                     Column(modifier = Modifier.padding(10.dp)) {
                                         if (!isMe) {
@@ -1651,14 +1911,127 @@ fun RequestDetailDialog(
                                                 msg.senderName,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.primary
+                                                color = if (isMe) Color.White.copy(alpha = 0.9f) else MaterialTheme.colorScheme.primary
                                             )
                                         }
-                                        Text(
-                                            text = msg.content,
-                                            fontSize = 13.sp,
-                                            color = if (isMe) Color.White else Color.Black
-                                        )
+                                        
+                                        when (msg.type) {
+                                            "LOCATION" -> {
+                                                val context = LocalContext.current
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .background(
+                                                            if (isMe) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) else Color(0xFFE8F0FE),
+                                                            RoundedCornerShape(8.dp)
+                                                        )
+                                                        .clickable {
+                                                            Toast.makeText(context, "جاري فتح خرائط Google لتوجيهك للموقع...", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                        .padding(8.dp)
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Map,
+                                                            contentDescription = "موقع",
+                                                            tint = if (isMe) Color.White else MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier.size(24.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Column {
+                                                            Text(
+                                                                "الموقع الجغرافي",
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontSize = 13.sp,
+                                                                color = if (isMe) Color.White else Color.Black
+                                                            )
+                                                            Text(
+                                                                "عرض الموقع على الخريطة",
+                                                                fontSize = 11.sp,
+                                                                color = if (isMe) Color.White.copy(alpha = 0.8f) else Color.DarkGray
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            "IMAGE_PLACEHOLDER" -> {
+                                                var showImageDetail by remember { mutableStateOf(false) }
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .background(
+                                                            if (isMe) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) else Color(0xFFF1F3F4),
+                                                            RoundedCornerShape(8.dp)
+                                                        )
+                                                        .clickable { showImageDetail = true }
+                                                        .padding(8.dp)
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Image,
+                                                            contentDescription = "صورة",
+                                                            tint = if (isMe) Color.White else Color.Gray,
+                                                            modifier = Modifier.size(24.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Column {
+                                                            Text(
+                                                                "صورة العطل المرفقة",
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontSize = 13.sp,
+                                                                color = if (isMe) Color.White else Color.Black
+                                                            )
+                                                            Text(
+                                                                "حجم الملف: 1.4 MB • اضغط للعرض",
+                                                                fontSize = 10.sp,
+                                                                color = if (isMe) Color.White.copy(alpha = 0.8f) else Color.Gray
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                if (showImageDetail) {
+                                                    Dialog(onDismissRequest = { showImageDetail = false }) {
+                                                        Card(
+                                                            shape = RoundedCornerShape(16.dp),
+                                                            modifier = Modifier.padding(16.dp)
+                                                        ) {
+                                                            Column(
+                                                                modifier = Modifier.padding(16.dp),
+                                                                horizontalAlignment = Alignment.CenterHorizontally
+                                                            ) {
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .fillMaxWidth()
+                                                                        .height(200.dp)
+                                                                        .background(Color.DarkGray, RoundedCornerShape(8.dp)),
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                                        Icon(Icons.Default.PhotoCamera, "معاينة العطل", tint = Color.White, modifier = Modifier.size(48.dp))
+                                                                        Spacer(modifier = Modifier.height(8.dp))
+                                                                        Text("[ معاينة تفصيلية لموقع العطل المرفق ]", color = Color.LightGray, fontSize = 12.sp)
+                                                                    }
+                                                                }
+                                                                Spacer(modifier = Modifier.height(16.dp))
+                                                                Text("صورة توضيحية للمشكلة المرسلة من العميل لمساعدة الفني في تحضير الأدوات المناسبة قبل الحضور.", textAlign = TextAlign.Center, fontSize = 12.sp, color = Color.Gray)
+                                                                Spacer(modifier = Modifier.height(16.dp))
+                                                                Button(onClick = { showImageDetail = false }) {
+                                                                    Text("حسناً")
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            else -> {
+                                                Text(
+                                                    text = msg.content,
+                                                    fontSize = 13.sp,
+                                                    color = if (isMe) Color.White else Color.Black
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1710,11 +2083,90 @@ fun RequestDetailDialog(
     }
 }
 
+// --- Comment Data Class ---
+data class PostComment(
+    val authorName: String,
+    val authorAvatarColor: Int,
+    val content: String,
+    val createdAt: Long = System.currentTimeMillis(),
+    val authorAvatarUri: String? = null
+)
+
 // --- Neighborhood Screen Feed Composable ---
 @Composable
 fun NeighborhoodScreen(viewModel: SouqViewModel) {
+    val selectedSubTab by viewModel.neighborhoodSubTab.collectAsState()
+
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            // Elegant Material 3 Sub Tabs
+            TabRow(
+                selectedTabIndex = selectedSubTab,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary
+            ) {
+                Tab(
+                    selected = selectedSubTab == 0,
+                    onClick = { viewModel.setNeighborhoodSubTab(0) },
+                    text = { Text("أخبار ومناشير", fontWeight = FontWeight.Bold, fontSize = 12.sp) },
+                    icon = { Icon(Icons.Default.Forum, "أخبار الحي", modifier = Modifier.size(20.dp)) }
+                )
+                Tab(
+                    selected = selectedSubTab == 1,
+                    onClick = { viewModel.setNeighborhoodSubTab(1) },
+                    text = { Text("فرص وعروض عمل", fontWeight = FontWeight.Bold, fontSize = 12.sp) },
+                    icon = { Icon(Icons.Default.Work, "فرص العمل", modifier = Modifier.size(20.dp)) }
+                )
+                Tab(
+                    selected = selectedSubTab == 2,
+                    onClick = { viewModel.setNeighborhoodSubTab(2) },
+                    text = { Text("قنوات النقاش", fontWeight = FontWeight.Bold, fontSize = 12.sp) },
+                    icon = { Icon(Icons.Default.Campaign, "قنوات نقاش", modifier = Modifier.size(20.dp)) }
+                )
+            }
+
+            AnimatedContent(
+                targetState = selectedSubTab,
+                transitionSpec = {
+                    fadeIn() togetherWith fadeOut()
+                },
+                label = "SubTabTransition",
+                modifier = Modifier.weight(1f)
+            ) { targetTab ->
+                when (targetTab) {
+                    0 -> NeighborhoodFeedContent(viewModel)
+                    1 -> NeighborhoodJobsContent(viewModel)
+                    2 -> NeighborhoodChannelsContent(viewModel)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun NeighborhoodFeedContent(viewModel: SouqViewModel) {
     val posts by viewModel.allPosts.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
+
+    var activePostForComments by remember { mutableStateOf<PostEntity?>(null) }
+    val commentsByPost = remember {
+        mutableStateMapOf<Int, List<PostComment>>().apply {
+            put(1, listOf(
+                PostComment("أحمد العتيبي", 2, "أبو سليمان ممتاز جداً وأنصح بالتعامل معه عن تجربة شخصية في تصليح الكهرباء!"),
+                PostComment("سلوى محمد", 4, "صحيح، شغله سريع وسعره معقول جداً.")
+            ))
+            put(2, listOf(
+                PostComment("خالد الشهري", 1, "السباك أبو فهد بطل ووصلني في 10 دقائق فقط لتصليح تسريب المطبخ.")
+            ))
+            put(3, listOf(
+                PostComment("عبدالرحمن سليمان", 5, "أنصحك بالفني رائد، نجار متميز في حي الياسمين.")
+            ))
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -1725,12 +2177,19 @@ fun NeighborhoodScreen(viewModel: SouqViewModel) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primary)
+                    .background(
+                        brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                            )
+                        )
+                    )
                     .padding(20.dp)
             ) {
                 Column {
                     Text(
-                        "منشورات حيك (${currentUser?.neighborhood})",
+                        "منشورات حيك (${currentUser?.neighborhood ?: "حي الياسمين"})",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
@@ -1772,7 +2231,18 @@ fun NeighborhoodScreen(viewModel: SouqViewModel) {
                                     .background(getAvatarColor(post.authorAvatarColor), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(post.authorName.take(1), color = Color.White, fontWeight = FontWeight.Bold)
+                                if (!post.authorAvatarUri.isNullOrEmpty()) {
+                                    AsyncImage(
+                                        model = post.authorAvatarUri,
+                                        contentDescription = "صورة الناشر",
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Text(post.authorName.take(1), color = Color.White, fontWeight = FontWeight.Bold)
+                                }
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
@@ -1806,23 +2276,1137 @@ fun NeighborhoodScreen(viewModel: SouqViewModel) {
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.FavoriteBorder, null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+                            // Like Button (Interactive)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { viewModel.likePost(post.id) }
+                                    .padding(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (post.isLikedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                    contentDescription = "إعجاب",
+                                    tint = if (post.isLikedByMe) Color(0xFFE91E63) else Color.Gray,
+                                    modifier = Modifier.size(18.dp)
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text("${post.likesCount} إعجاب", fontSize = 12.sp, color = Color.Gray)
+                                Text(
+                                    text = "${post.likesCount} إعجاب",
+                                    fontSize = 12.sp,
+                                    color = if (post.isLikedByMe) Color(0xFFE91E63) else Color.Gray,
+                                    fontWeight = if (post.isLikedByMe) FontWeight.Bold else FontWeight.Normal
+                                )
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Comment, null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+
+                            // Comment Button (Interactive)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { activePostForComments = post }
+                                    .padding(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Comment,
+                                    contentDescription = "تعليق",
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(18.dp)
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("${post.commentsCount} تعليق", fontSize = 12.sp, color = Color.Gray)
                             }
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+
+                            // Share Button (Toast Interaction)
+                            val context = LocalContext.current
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        Toast.makeText(context, "تم نسخ رابط المنشور بنجاح لأهل الحي!", Toast.LENGTH_SHORT).show()
+                                    }
+                                    .padding(8.dp)
+                            ) {
                                 Icon(Icons.Default.Share, null, tint = Color.Gray, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("مشاركة", fontSize = 12.sp, color = Color.Gray)
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // Comment Dialog
+    if (activePostForComments != null) {
+        val post = activePostForComments!!
+        val postComments = commentsByPost[post.id] ?: emptyList()
+        CommentDialog(
+            post = post,
+            comments = postComments,
+            onAddComment = { content ->
+                val currentName = currentUser?.name ?: "جار مجهول"
+                val currentAvatar = currentUser?.avatarColor ?: 0
+                val newComment = PostComment(
+                    authorName = currentName,
+                    authorAvatarColor = currentAvatar,
+                    content = content,
+                    authorAvatarUri = currentUser?.avatarUri
+                )
+                commentsByPost[post.id] = postComments + newComment
+                viewModel.incrementCommentsCount(post.id)
+            },
+            onDismiss = { activePostForComments = null }
+        )
+    }
+}
+
+@Composable
+fun NeighborhoodJobsContent(viewModel: SouqViewModel) {
+    val jobs by viewModel.allJobs.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
+    var selectedCategory by remember { mutableStateOf("الكل") }
+    var selectedJobType by remember { mutableStateOf("الكل") }
+    var searchQuery by remember { mutableStateOf("") }
+    var showCreateJobDialog by remember { mutableStateOf(false) }
+
+    val categories = listOf("الكل", "صيانة", "توصيل", "تعليم", "مساعدة في الحي", "أخرى")
+    val jobTypes = listOf("الكل", "دوام جزئي", "عمل حر / مؤقت", "مكافأة تقديرية")
+
+    val filteredJobs = jobs.filter { job ->
+        val matchesCategory = selectedCategory == "الكل" || job.category == selectedCategory
+        val matchesJobType = selectedJobType == "الكل" || job.jobType == selectedJobType
+        val matchesSearch = searchQuery.isEmpty() || job.title.contains(searchQuery, ignoreCase = true) || job.description.contains(searchQuery, ignoreCase = true)
+        matchesCategory && matchesJobType && matchesSearch
+    }
+
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Mourjan-Style Premium Header Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Work,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "دليل وظائف وفرص عمل جيران سوق",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "دليل محلي متكامل على طريقة مرجان لتبادل الخبرات وتوظيف أهل الحي مباشرة بدون عمولات.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                    lineHeight = 16.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { showCreateJobDialog = true },
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Add, null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("نشر فرصة عمل أو طلب خدمة بالحي", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            }
+        }
+
+        // Advanced Search & Filters Section (Mourjan/Haraj style)
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 12.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                // Search Input
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("ابحث في عنوان الوظيفة أو التفاصيل... (مثال: تدريس، توصيل)", fontSize = 12.sp) },
+                    leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray, modifier = Modifier.size(18.dp)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = Color.LightGray
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Category selection label
+                Text(
+                    text = "تصفية حسب التخصص:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+
+                // Horizontal Category Row
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(categories) { cat ->
+                        FilterChip(
+                            selected = selectedCategory == cat,
+                            onClick = { selectedCategory = cat },
+                            label = { Text(cat, fontSize = 11.sp) },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                selectedLabelColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Job Type selection label
+                Text(
+                    text = "نوع العمل والتعاقد:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+
+                // Horizontal Job Type Row
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(jobTypes) { jt ->
+                        FilterChip(
+                            selected = selectedJobType == jt,
+                            onClick = { selectedJobType = jt },
+                            label = { Text(jt, fontSize = 11.sp) },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
+                                selectedLabelColor = MaterialTheme.colorScheme.tertiary
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        // Stats badge
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "الفرص المتاحة (${filteredJobs.size})",
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+            if (searchQuery.isNotEmpty() || selectedCategory != "الكل" || selectedJobType != "الكل") {
+                TextButton(
+                    onClick = {
+                        searchQuery = ""
+                        selectedCategory = "الكل"
+                        selectedJobType = "الكل"
+                    },
+                    contentPadding = PaddingValues(0.dp),
+                    modifier = Modifier.height(24.dp)
+                ) {
+                    Text("إعادة ضبط الفلاتر", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        // Jobs Directory List
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
+            if (filteredJobs.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(48.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WorkOutline,
+                            contentDescription = null,
+                            tint = Color.Gray,
+                            modifier = Modifier.size(56.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "لا توجد فرص عمل مطابقة لمعايير البحث حالياً.",
+                            color = Color.Gray,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                items(filteredJobs) { job ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.4f))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            // Category & Job Type badges side-by-side
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = job.category,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .background(MaterialTheme.colorScheme.tertiaryContainer, RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = job.jobType,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                
+                                // Beautiful relative simulation date badge
+                                Text(
+                                    text = "اليوم",
+                                    fontSize = 10.sp,
+                                    color = Color.Gray
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Job Title
+                            Text(
+                                text = job.title,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Payment Details Badge (Haraj/Mourjan green badge)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFFE8F5E9), RoundedCornerShape(6.dp))
+                                    .padding(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Payments,
+                                    contentDescription = "المقابل المادي",
+                                    tint = Color(0xFF2E7D32),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "المقابل المتوقع: ${job.payment}",
+                                    color = Color(0xFF2E7D32),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Location badge (Mourjan style)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Place,
+                                    contentDescription = "الموقع",
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "المنطقة: الرياض - ${job.neighborhood}",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Description
+                            Text(
+                                text = job.description,
+                                fontSize = 12.sp,
+                                color = Color.DarkGray,
+                                lineHeight = 18.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Divider(color = Color.LightGray.copy(alpha = 0.5f))
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Poster details and actions
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(getAvatarColor(job.id % 8), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (!job.posterAvatarUri.isNullOrEmpty()) {
+                                            AsyncImage(
+                                                model = job.posterAvatarUri,
+                                                contentDescription = "صورة الناشر",
+                                                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
+                                            Text(
+                                                text = job.postedBy.take(1),
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = job.postedBy,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        )
+                                        Text(
+                                            text = "من أهل ${job.neighborhood}",
+                                            fontSize = 10.sp,
+                                            color = Color.Gray
+                                        )
+                                    }
+                                }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    IconButton(
+                                        onClick = {
+                                            Toast.makeText(
+                                                context,
+                                                "جاري التحويل لدردشة الواتساب مع ${job.postedBy} (هاتف: ${job.posterPhone})...",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        },
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .background(Color(0xFFE8F5E9), CircleShape)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Chat,
+                                            contentDescription = "واتساب",
+                                            tint = Color(0xFF2E7D32),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            if (!job.isAppliedByMe) {
+                                                viewModel.applyToJob(job.id)
+                                                Toast.makeText(
+                                                    context,
+                                                    "تم التقديم للفرصة بنجاح! تم إشعار صاحب الإعلان.",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (job.isAppliedByMe) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary
+                                        ),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                        modifier = Modifier.height(36.dp)
+                                    ) {
+                                        if (job.isAppliedByMe) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("تم التقديم (${job.applicantsCount})", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        } else {
+                                            Text("تقدم للفرصة", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showCreateJobDialog) {
+        CreateJobDialog(
+            viewModel = viewModel,
+            onDismiss = { showCreateJobDialog = false }
+        )
+    }
+}
+
+data class NeighborhoodChannel(
+    val id: String,
+    val title: String,
+    val description: String,
+    val icon: ImageVector,
+    val color: Color
+)
+
+@Composable
+fun NeighborhoodChannelsContent(viewModel: SouqViewModel) {
+    val activeChannelId by viewModel.activeChannelId.collectAsState()
+    val messages by viewModel.activeChannelMessages.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
+
+    var textInput by remember { mutableStateOf("") }
+
+    val channelsList = listOf(
+        NeighborhoodChannel("general", "المجلس العام للحي", "أحاديث ونقاشات الجيران الودية اليومية", Icons.Default.Forum, Color(0xFF4CAF50)),
+        NeighborhoodChannel("news", "أخبار وتنبيهات الحي", "أخبار وتنبيهات مجلس إدارة وملاك الحي الرسمية", Icons.Default.Campaign, Color(0xFFFF9800)),
+        NeighborhoodChannel("services", "تجارب الصيانة والخدمات", "استشارات وحلول مشاكل صيانة منازل الحي", Icons.Default.Handyman, Color(0xFF2196F3)),
+        NeighborhoodChannel("market", "حراج وبيع وشراء", "تبادل وبيع السلع والمنتجات المستعملة والجديدة", Icons.Default.LocalOffer, Color(0xFFE91E63))
+    )
+
+    val currentChannel = channelsList.find { it.id == activeChannelId } ?: channelsList.first()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Horizontal channels selection row
+        Text(
+            text = "اختر قناة نقاش للمشاركة مع جيرانك:",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(channelsList) { ch ->
+                val isSelected = ch.id == activeChannelId
+                Card(
+                    modifier = Modifier
+                        .width(150.dp)
+                        .clickable { viewModel.selectChannel(ch.id) },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSelected) ch.color.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+                    ),
+                    border = BorderStroke(
+                        width = if (isSelected) 2.dp else 1.dp,
+                        color = if (isSelected) ch.color else MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = ch.icon,
+                                contentDescription = null,
+                                tint = ch.color,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = ch.title,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = ch.description,
+                            fontSize = 9.sp,
+                            color = Color.Gray,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            lineHeight = 12.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Chat Room Title banner
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(currentChannel.color.copy(alpha = 0.05f))
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = currentChannel.icon,
+                    contentDescription = null,
+                    tint = currentChannel.color,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "# " + currentChannel.title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = currentChannel.color
+                    )
+                    Text(
+                        text = currentChannel.description,
+                        fontSize = 10.sp,
+                        color = Color.Gray
+                    )
+                }
+            }
+        }
+
+        // Message List (Scrollable)
+        val lazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
+        LaunchedEffect(messages.size) {
+            if (messages.isNotEmpty()) {
+                lazyListState.animateScrollToItem(messages.size - 1)
+            }
+        }
+
+        LazyColumn(
+            state = lazyListState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (messages.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "كن أول من يبدأ النقاش في قناة #${currentChannel.title}!",
+                            color = Color.Gray,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                items(messages) { msg ->
+                    val isMe = msg.senderId == currentUser?.uid
+                    
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = if (isMe) Alignment.End else Alignment.Start
+                    ) {
+                        // User Name & Role Badge
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = if (isMe) "أنت" else msg.senderName,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                color = Color.Gray
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        color = when (msg.senderRole) {
+                                            "ADMIN" -> Color(0xFFE53935).copy(alpha = 0.1f)
+                                            "TECHNICIAN" -> Color(0xFF1E88E5).copy(alpha = 0.1f)
+                                            else -> Color(0xFF757575).copy(alpha = 0.1f)
+                                        },
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = when (msg.senderRole) {
+                                        "ADMIN" -> "مشرف"
+                                        "TECHNICIAN" -> "فني"
+                                        else -> "جار"
+                                    },
+                                    color = when (msg.senderRole) {
+                                        "ADMIN" -> Color(0xFFE53935)
+                                        "TECHNICIAN" -> Color(0xFF1E88E5)
+                                        else -> Color(0xFF757575)
+                                    },
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // Bubble
+                        Card(
+                            shape = RoundedCornerShape(
+                                topStart = 12.dp,
+                                topEnd = 12.dp,
+                                bottomStart = if (isMe) 12.dp else 2.dp,
+                                bottomEnd = if (isMe) 2.dp else 12.dp
+                            ),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                Text(
+                                    text = msg.content,
+                                    fontSize = 13.sp,
+                                    color = if (isMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Chat Input Row
+        Surface(
+            tonalElevation = 4.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = textInput,
+                    onValueChange = { textInput = it },
+                    placeholder = { Text("اكتب رسالتك للجيران في قناة #${currentChannel.title}...", fontSize = 12.sp) },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = currentChannel.color,
+                        unfocusedBorderColor = Color.LightGray
+                    ),
+                    maxLines = 3
+                )
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                IconButton(
+                    onClick = {
+                        if (textInput.isNotEmpty()) {
+                            viewModel.sendChannelMessage(currentChannel.id, textInput)
+                            textInput = ""
+                        }
+                    },
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(currentChannel.color, CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Send,
+                        contentDescription = "إرسال",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CreateJobDialog(
+    viewModel: SouqViewModel,
+    onDismiss: () -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("صيانة") }
+    var description by remember { mutableStateOf("") }
+    var payment by remember { mutableStateOf("") }
+    var jobType by remember { mutableStateOf("عمل حر / مؤقت") }
+
+    val categories = listOf("صيانة", "توصيل", "تعليم", "مساعدة في الحي", "أخرى")
+    val jobTypes = listOf("عمل حر / مؤقت", "دوام جزئي", "مكافأة تقديرية", "دوام كامل")
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = "نشر فرصة عمل أو طلب مساعدة في الحي",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("عنوان الفرصة (مثال: معلم خصوصي رياضيات)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text("تصنيف العمل بالحي:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    categories.forEach { cat ->
+                        CustomFilterChip(
+                            selected = category == cat,
+                            onClick = { category = cat },
+                            label = cat
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text("نوع العمل/الدوام:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    jobTypes.forEach { type ->
+                        CustomFilterChip(
+                            selected = jobType == type,
+                            onClick = { jobType = type },
+                            label = type
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = payment,
+                    onValueChange = { payment = it },
+                    label = { Text("المقابل المادي (مثال: ١٢٠ ريال / ساعة)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("تفاصيل ومتطلبات المساعدة المطلوبة") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3
+                )
+                
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1.5f)
+                    ) {
+                        Text("إلغاء")
+                    }
+                    Button(
+                        onClick = {
+                            if (title.isNotEmpty() && description.isNotEmpty() && payment.isNotEmpty()) {
+                                viewModel.createJob(
+                                    title = title,
+                                    category = category,
+                                    description = description,
+                                    payment = payment,
+                                    jobType = jobType
+                                )
+                                onDismiss()
+                            }
+                        },
+                        modifier = Modifier.weight(2f),
+                        enabled = title.isNotEmpty() && description.isNotEmpty() && payment.isNotEmpty()
+                    ) {
+                        Text("نشر الآن")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CustomFilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = label,
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+fun CommentDialog(
+    post: PostEntity,
+    comments: List<PostComment>,
+    onAddComment: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var newCommentText by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth()
+                    .heightIn(max = 450.dp)
+            ) {
+                Text(
+                    text = "التعليقات والمناقشة",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Divider()
+
+                // Post context preview
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Text(post.authorName, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(post.content, fontSize = 11.sp, color = Color.DarkGray, maxLines = 2)
+                    }
+                }
+
+                // Comments List
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    if (comments.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("لا توجد تعليقات بعد. كن أول من يعلق!", fontSize = 13.sp, color = Color.Gray)
+                        }
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(comments) { comment ->
+                                Row(
+                                    verticalAlignment = Alignment.Top,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .background(getAvatarColor(comment.authorAvatarColor), CircleShape),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (!comment.authorAvatarUri.isNullOrEmpty()) {
+                                            AsyncImage(
+                                                model = comment.authorAvatarUri,
+                                                contentDescription = "صورة المعلق",
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .clip(CircleShape),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                        } else {
+                                            Text(comment.authorName.take(1), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                            .padding(8.dp)
+                                    ) {
+                                        Text(comment.authorName, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Text(comment.content, fontSize = 12.sp, color = Color.DarkGray)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Divider()
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Input Box
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = newCommentText,
+                        onValueChange = { newCommentText = it },
+                        placeholder = { Text("اكتب تعليقاً...", fontSize = 13.sp) },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (newCommentText.trim().isNotEmpty()) {
+                                onAddComment(newCommentText.trim())
+                                newCommentText = ""
+                            }
+                        },
+                        shape = CircleShape,
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(Icons.Default.Send, contentDescription = "إرسال", modifier = Modifier.size(18.dp))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("إغلاق")
                 }
             }
         }
@@ -1898,7 +3482,18 @@ fun OffersScreen(viewModel: SouqViewModel) {
                                         .background(getAvatarColor(offer.techAvatarColor), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(offer.techName.take(1), color = Color.White, fontWeight = FontWeight.Bold)
+                                    if (!offer.techAvatarUri.isNullOrEmpty()) {
+                                        AsyncImage(
+                                            model = offer.techAvatarUri,
+                                            contentDescription = "صورة الفني",
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(CircleShape),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Text(offer.techName.take(1), color = Color.White, fontWeight = FontWeight.Bold)
+                                    }
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
@@ -1981,6 +3576,25 @@ fun OffersScreen(viewModel: SouqViewModel) {
     }
 }
 
+// --- Helper to save selected URI to private internal storage for persistence ---
+fun saveUriToInternalStorage(context: android.content.Context, uri: android.net.Uri): String? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val fileName = "profile_avatar_${System.currentTimeMillis()}.jpg"
+        val file = java.io.File(context.filesDir, fileName)
+        val outputStream = java.io.FileOutputStream(file)
+        inputStream.use { input ->
+            outputStream.use { output ->
+                input.copyTo(output)
+            }
+        }
+        file.absolutePath
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
 // --- Profile & Custom Settings Composable ---
 @Composable
 fun ProfileScreen(viewModel: SouqViewModel) {
@@ -1995,8 +3609,33 @@ fun ProfileScreen(viewModel: SouqViewModel) {
     var profession by remember(currentUser) { mutableStateOf(currentUser?.profession ?: "") }
     var experience by remember(currentUser) { mutableStateOf(currentUser?.experienceYears?.toString() ?: "0") }
     var isOnline by remember(currentUser) { mutableStateOf(currentUser?.isOnline ?: true) }
+    var avatarColor by remember(currentUser) { mutableStateOf(currentUser?.avatarColor ?: 0) }
 
     var isEditing by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let { selectedUri ->
+            val localPath = saveUriToInternalStorage(context, selectedUri)
+            if (localPath != null) {
+                viewModel.updateUserProfile(
+                    name = name,
+                    phone = phone,
+                    city = city,
+                    neighborhood = neighborhood,
+                    bio = bio,
+                    profession = profession,
+                    experienceYears = experience.toIntOrNull() ?: 0,
+                    isOnline = isOnline,
+                    avatarColor = avatarColor,
+                    avatarUri = localPath
+                )
+                Toast.makeText(context, "تم حفظ الصورة الشخصية بنجاح!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -2017,23 +3656,185 @@ fun ProfileScreen(viewModel: SouqViewModel) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Box(
                         modifier = Modifier
-                            .size(80.dp)
-                            .background(getAvatarColor(currentUser?.avatarColor ?: 0), CircleShape),
+                            .size(90.dp)
+                            .clickable { launcher.launch("image/*") }
+                            .background(getAvatarColor(avatarColor), CircleShape)
+                            .border(2.dp, Color.White.copy(alpha = 0.5f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(currentUser?.name?.take(1) ?: "ع", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                        if (!currentUser?.avatarUri.isNullOrEmpty()) {
+                            AsyncImage(
+                                model = currentUser!!.avatarUri,
+                                contentDescription = "الصورة الشخصية",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(name.take(1).ifEmpty { "ع" }, color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                        }
+                        
+                        // Camera action overlay button
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(28.dp)
+                                .background(MaterialTheme.colorScheme.tertiary, CircleShape)
+                                .border(1.5.dp, Color.White, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PhotoCamera,
+                                contentDescription = "تغيير الصورة",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
+                    
+                    if (!currentUser?.avatarUri.isNullOrEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "إزالة الصورة الشخصية",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable {
+                                    viewModel.updateUserProfile(
+                                        name = name,
+                                        phone = phone,
+                                        city = city,
+                                        neighborhood = neighborhood,
+                                        bio = bio,
+                                        profession = profession,
+                                        experienceYears = experience.toIntOrNull() ?: 0,
+                                        isOnline = isOnline,
+                                        avatarColor = avatarColor,
+                                        avatarUri = null
+                                    )
+                                    Toast.makeText(context, "تمت إزالة الصورة الشخصية", Toast.LENGTH_SHORT).show()
+                                }
+                                .padding(4.dp)
+                        )
+                    }
+                    
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(currentUser?.name ?: "", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Text(
-                        text = when(currentUser?.role) {
-                            "ADMIN" -> "مدير عام المنصة"
-                            "TECHNICIAN" -> "فني (${currentUser?.profession})"
-                            else -> "عميل محلي"
-                        },
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 13.sp
-                    )
+                    Text(name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (currentUser?.role == "TECHNICIAN") Icons.Default.Handyman else Icons.Default.Person,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = when(currentUser?.role) {
+                                "ADMIN" -> "مدير عام المنصة"
+                                "TECHNICIAN" -> "فني مرخص"
+                                else -> "ابن الحي (عميل)"
+                            },
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    if (isEditing) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("اختر لون الحساب التعريفي المفضل:", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        ) {
+                            for (i in 0 until 8) {
+                                val isSelected = avatarColor == i
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(getAvatarColor(i))
+                                        .border(
+                                            width = if (isSelected) 3.dp else 0.dp,
+                                            color = if (isSelected) Color.White else Color.Transparent,
+                                            shape = CircleShape
+                                        )
+                                        .clickable { avatarColor = i },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isSelected) {
+                                        Icon(Icons.Default.Check, contentDescription = "محدد", tint = Color.White, modifier = Modifier.size(18.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Profile Stats Cards Row
+        item {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                        Text("التقييم العام", fontSize = 11.sp, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Star, "نجمة", tint = Color(0xFFF59E0B), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = if (currentUser?.role == "TECHNICIAN") "${currentUser?.rating ?: 4.5}" else "5.0",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                    Box(modifier = Modifier.width(1.dp).height(32.dp).background(Color.LightGray))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                        Text("الطلبات المنجزة", fontSize = 11.sp, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (currentUser?.role == "TECHNICIAN") "${currentUser?.completedOrders ?: 0} طلبات" else "عضو نشط",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                    Box(modifier = Modifier.width(1.dp).height(32.dp).background(Color.LightGray))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
+                        Text("المنطقة", fontSize = 11.sp, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = neighborhood.ifEmpty { "غير محدد" }.take(10),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
@@ -2053,23 +3854,31 @@ fun ProfileScreen(viewModel: SouqViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("معلومات الحساب", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                        TextButton(onClick = {
-                            if (isEditing) {
-                                viewModel.updateUserProfile(
-                                    name = name,
-                                    phone = phone,
-                                    city = city,
-                                    neighborhood = neighborhood,
-                                    bio = bio,
-                                    profession = profession,
-                                    experienceYears = experience.toIntOrNull() ?: 0,
-                                    isOnline = isOnline
-                                )
+                        Text("الملف التعريفي", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 16.sp)
+                        TextButton(
+                            modifier = Modifier.minimumInteractiveComponentSize(),
+                            onClick = {
+                                if (isEditing) {
+                                    viewModel.updateUserProfile(
+                                        name = name,
+                                        phone = phone,
+                                        city = city,
+                                        neighborhood = neighborhood,
+                                        bio = bio,
+                                        profession = profession,
+                                        experienceYears = experience.toIntOrNull() ?: 0,
+                                        isOnline = isOnline,
+                                        avatarColor = avatarColor
+                                    )
+                                    Toast.makeText(context, "تم حفظ تعديلات الملف الشخصي بنجاح!", Toast.LENGTH_SHORT).show()
+                                }
+                                isEditing = !isEditing
                             }
-                            isEditing = !isEditing
-                        }) {
-                            Text(if (isEditing) "حفظ التغييرات" else "تعديل البيانات")
+                        ) {
+                            Text(
+                                text = if (isEditing) "حفظ التغييرات" else "تعديل البيانات",
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
@@ -2078,11 +3887,11 @@ fun ProfileScreen(viewModel: SouqViewModel) {
                         ProfileInfoRow(Icons.Default.Person, "الاسم الكامل", currentUser?.name ?: "")
                         ProfileInfoRow(Icons.Default.Phone, "رقم الجوال", currentUser?.phoneNumber ?: "")
                         ProfileInfoRow(Icons.Default.LocationCity, "المدينة والحي", "${currentUser?.city} - ${currentUser?.neighborhood}")
-                        ProfileInfoRow(Icons.Default.Info, "النبذة الشخصية", currentUser?.bio?.ifEmpty { "لا توجد نبذة" } ?: "")
+                        ProfileInfoRow(Icons.Default.Info, "النبذة الشخصية", currentUser?.bio?.ifEmpty { "لا توجد نبذة حالياً. اكتب نبذة تعريفية ليتعرف عليك الجيران!" } ?: "")
 
                         if (currentUser?.role == "TECHNICIAN") {
                             ProfileInfoRow(Icons.Default.Handyman, "التخصص والمهنة", currentUser?.profession ?: "")
-                            ProfileInfoRow(Icons.Default.Badge, "سنوات الخبرة", "${currentUser?.experienceYears} سنوات")
+                            ProfileInfoRow(Icons.Default.Badge, "سنوات الخبرة", "${currentUser?.experienceYears} سنوات من العطاء")
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -2093,7 +3902,7 @@ fun ProfileScreen(viewModel: SouqViewModel) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Default.OnlinePrediction, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
                                     Spacer(modifier = Modifier.width(12.dp))
-                                    Text("حالة التوفر للخدمة", fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                                    Text("حالة التوفر للخدمة فوراً", fontWeight = FontWeight.Medium, fontSize = 13.sp)
                                 }
                                 Switch(
                                     checked = isOnline,
@@ -2101,29 +3910,109 @@ fun ProfileScreen(viewModel: SouqViewModel) {
                                         isOnline = it
                                         viewModel.updateUserProfile(
                                             name = name, phone = phone, city = city, neighborhood = neighborhood, bio = bio,
-                                            profession = profession, experienceYears = experience.toIntOrNull() ?: 0, isOnline = it
+                                            profession = profession, experienceYears = experience.toIntOrNull() ?: 0, isOnline = it,
+                                            avatarColor = avatarColor
                                         )
                                     }
                                 )
                             }
                         }
                     } else {
-                        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("الاسم") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = { name = it },
+                            label = { Text("الاسم الكامل") },
+                            modifier = Modifier.fillMaxWidth().testTag("edit_name_input"),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = phone,
+                            onValueChange = { phone = it },
+                            label = { Text("رقم الجوال") },
+                            modifier = Modifier.fillMaxWidth().testTag("edit_phone_input"),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = city,
+                            onValueChange = { city = it },
+                            label = { Text("المدينة") },
+                            modifier = Modifier.fillMaxWidth().testTag("edit_city_input"),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = neighborhood,
+                            onValueChange = { neighborhood = it },
+                            label = { Text("الحي") },
+                            modifier = Modifier.fillMaxWidth().testTag("edit_neighborhood_input"),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        // Bio suggestions and Text field
+                        Text(
+                            text = "النبذة الشخصية المخصصة",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                        OutlinedTextField(
+                            value = bio,
+                            onValueChange = { bio = it },
+                            label = { Text("اكتب نبذة عنك للجيران") },
+                            modifier = Modifier.fillMaxWidth().testTag("edit_bio_input"),
+                            maxLines = 3
+                        )
+                        
                         Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(value = phone, onValueChange = { phone = it }, label = { Text("رقم الجوال") }, modifier = Modifier.fillMaxWidth())
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(value = city, onValueChange = { city = it }, label = { Text("المدينة") }, modifier = Modifier.fillMaxWidth())
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(value = neighborhood, onValueChange = { neighborhood = it }, label = { Text("الحي") }, modifier = Modifier.fillMaxWidth())
-                        Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(value = bio, onValueChange = { bio = it }, label = { Text("النبذة الشخصية") }, modifier = Modifier.fillMaxWidth())
+                        Text(
+                            text = "اقتراحات سريعة لنص النبذة (اضغط للنسخ للنبذة):",
+                            fontSize = 11.sp,
+                            color = Color.Gray,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 6.dp)
+                        )
+                        
+                        val bioTemplates = if (currentUser?.role == "TECHNICIAN") {
+                            listOf(
+                                "فني محترف صيانة وتركيب بخبرة طويلة ودقة عالية بالعمل.",
+                                "متخصص في كشف تسريبات المياه وإصلاح الأعطال الطارئة في أسرع وقت.",
+                                "تأسيس وتشطيب شبكات الإنارة وتصليح اللوحات الكهربائية بضمان وأمان."
+                            )
+                        } else {
+                            listOf(
+                                "جار متعاون في الحي، نسعى معاً لتطوير مجتمعنا وحل المشكلات يداً بيد.",
+                                "محب للتطوع وتقديم المساعدة لأهل الحي لتسهيل وتيسير الخدمات.",
+                                "مهتم برفع مستوى الصيانة في الحي والمشاركة المجتمعية الفعالة."
+                            )
+                        }
+                        
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                        ) {
+                            bioTemplates.forEach { template ->
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                                        .clickable { bio = template }
+                                        .padding(8.dp)
+                                ) {
+                                    Text(template, fontSize = 11.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                }
+                            }
+                        }
 
                         if (currentUser?.role == "TECHNICIAN") {
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
                             var expandedProf by remember { mutableStateOf(false) }
                             Box(modifier = Modifier.fillMaxWidth()) {
                                 OutlinedButton(onClick = { expandedProf = true }, modifier = Modifier.fillMaxWidth()) {
-                                    Text("التخصص: $profession")
+                                    Text("التخصص الحالي: $profession")
                                 }
                                 DropdownMenu(expanded = expandedProf, onDismissRequest = { expandedProf = false }) {
                                     professionsList.forEach { p ->
@@ -2131,8 +4020,14 @@ fun ProfileScreen(viewModel: SouqViewModel) {
                                     }
                                 }
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            OutlinedTextField(value = experience, onValueChange = { experience = it }, label = { Text("سنوات الخبرة") }, modifier = Modifier.fillMaxWidth())
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = experience,
+                                onValueChange = { experience = it },
+                                label = { Text("سنوات الخبرة") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
                         }
                     }
                 }
@@ -2149,8 +4044,8 @@ fun ProfileScreen(viewModel: SouqViewModel) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("مركز الإشعارات والتنبيهات", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("أحدث التنبيهات والإشعارات بالحي", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.height(12.dp))
                     if (notifications.isEmpty()) {
                         Text("لا يوجد إشعارات جديدة حالياً.", color = Color.Gray, fontSize = 12.sp)
                     } else {
@@ -2291,7 +4186,18 @@ fun AdminScreen(viewModel: SouqViewModel) {
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(modifier = Modifier.size(32.dp).background(getAvatarColor(user.avatarColor), CircleShape), contentAlignment = Alignment.Center) {
-                            Text(user.name.take(1), color = Color.White, fontWeight = FontWeight.Bold)
+                            if (!user.avatarUri.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = user.avatarUri,
+                                    contentDescription = "صورة العضو",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Text(user.name.take(1), color = Color.White, fontWeight = FontWeight.Bold)
+                            }
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
@@ -2567,6 +4473,463 @@ fun RateTechDialog(
                         modifier = Modifier.weight(1f).testTag("submit_rating_button")
                     ) {
                         Text("حفظ التقييم")
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- Create Advertisement Dialog ---
+@Composable
+fun CreateAdvertisementDialog(
+    viewModel: SouqViewModel,
+    onDismiss: () -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var price by remember { mutableStateOf("") }
+    
+    val context = LocalContext.current
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Campaign, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "إنشاء إعلان ترويجي مميز",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    "سينشر إعلانك تلقائياً في منشورات الحي العامة كمنشور مميز، وكذلك في سوق العروض وباقات الصيانة!",
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    lineHeight = 16.sp
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("عنوان الإعلان الترويجي") },
+                    placeholder = { Text("مثال: عرض صيانة مكيفات الصيف المميز") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("تفاصيل الإعلان وعروضك") },
+                    placeholder = { Text("مثال: تنظيف فلاتر مجاني وتعبئة فريون أصلي مع كفالة 6 أشهر للخدمة") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    minLines = 3
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = price,
+                    onValueChange = { price = it },
+                    label = { Text("المبلغ / السعر (اختياري)") },
+                    placeholder = { Text("مثال: 120 ريال أو حسب العمل") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("إلغاء", color = Color.Gray)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (title.isNotEmpty() && description.isNotEmpty()) {
+                                viewModel.createAdvertisement(title, description, if (price.isEmpty()) "غير محدد" else price) {
+                                    Toast.makeText(context, "تم نشر إعلانك المميز بنجاح في المنشورات والعروض!", Toast.LENGTH_LONG).show()
+                                    onDismiss()
+                                }
+                            } else {
+                                Toast.makeText(context, "يرجى تعبئة العنوان والتفاصيل", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("نشر الآن", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- Create Channel Dialog ---
+@Composable
+fun CreateChannelDialog(
+    viewModel: SouqViewModel,
+    onDismiss: () -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    
+    // Icon selection
+    val icons = listOf(
+        Pair("forum", "منتدى ونقاش جيران"),
+        Pair("campaign", "أخبار وإعلانات"),
+        Pair("handyman", "شؤون الصيانة والمهن"),
+        Pair("local_offer", "بيع وشراء وتبادل"),
+        Pair("groups", "أنشطة وفعاليات الحي"),
+        Pair("chat", "نقاشات مفتوحة")
+    )
+    var selectedIconIndex by remember { mutableStateOf(0) }
+    var showIconDropdown by remember { mutableStateOf(false) }
+
+    // Color selection
+    val colors = listOf(
+        Pair("#4CAF50", "أخضر العشب"),
+        Pair("#2196F3", "أزرق البحر"),
+        Pair("#F44336", "أحمر دافئ"),
+        Pair("#9C27B0", "بنفسجي ملكي"),
+        Pair("#FFC107", "أصفر ذهبي"),
+        Pair("#E91E63", "وردي مشرق")
+    )
+    var selectedColorIndex by remember { mutableStateOf(0) }
+    var showColorDropdown by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.AddCircle, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "إنشاء قناة نقاش جديدة",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "أنشئ مساحة نقاش تفاعلية تجمع جيران الحي حول موضوع أو اهتمام مشترك.",
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    lineHeight = 16.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("اسم القناة الجديدة") },
+                    placeholder = { Text("مثال: ملاك ممشى الحي") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("وصف القناة") },
+                    placeholder = { Text("مثال: مساحة لنقاش وتحسين ومقترحات ممشى الحي والمرافق الرياضية") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Icon dropdown selector
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { showIconDropdown = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("أيقونة القناة: ${icons[selectedIconIndex].second}", fontSize = 12.sp)
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = showIconDropdown,
+                        onDismissRequest = { showIconDropdown = false },
+                        modifier = Modifier.fillMaxWidth(0.7f)
+                    ) {
+                        icons.forEachIndexed { idx, item ->
+                            DropdownMenuItem(
+                                text = { Text(item.second, fontSize = 12.sp) },
+                                onClick = {
+                                    selectedIconIndex = idx
+                                    showIconDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Color dropdown selector
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { showColorDropdown = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .background(Color(android.graphics.Color.parseColor(colors[selectedColorIndex].first)), CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("لون هوية القناة: ${colors[selectedColorIndex].second}", fontSize = 12.sp)
+                        }
+                    }
+                    DropdownMenu(
+                        expanded = showColorDropdown,
+                        onDismissRequest = { showColorDropdown = false },
+                        modifier = Modifier.fillMaxWidth(0.7f)
+                    ) {
+                        colors.forEachIndexed { idx, item ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(12.dp)
+                                                .background(Color(android.graphics.Color.parseColor(item.first)), CircleShape)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(item.second, fontSize = 12.sp)
+                                    }
+                                },
+                                onClick = {
+                                    selectedColorIndex = idx
+                                    showColorDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("إلغاء", color = Color.Gray)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (title.isNotEmpty() && description.isNotEmpty()) {
+                                viewModel.createChannel(
+                                    title = title,
+                                    description = description,
+                                    iconName = icons[selectedIconIndex].first,
+                                    colorHex = colors[selectedColorIndex].first
+                                )
+                                Toast.makeText(context, "تم إنشاء قناة النقاش الجديدة #${title}!", Toast.LENGTH_LONG).show()
+                                onDismiss()
+                            } else {
+                                Toast.makeText(context, "يرجى إدخال اسم ووصف القناة", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("إنشاء الآن", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- Settings Dialog ---
+@Composable
+fun SettingsDialog(
+    onDismiss: () -> Unit
+) {
+    var isDarkModeEnabled by remember { mutableStateOf(false) }
+    var isNotificationsEnabled by remember { mutableStateOf(true) }
+    var isGpsLocationEnabled by remember { mutableStateOf(true) }
+    var appLanguage by remember { mutableStateOf("العربية") }
+    var isLanguageDropdownExpanded by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Settings, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "إعدادات تطبيق سوق",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "قم بتخصيص خيارات التطبيق والتنبيهات المباشرة لخدمة الحي.",
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Toggle 1: Dark Mode
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.DarkMode, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("الوضع الداكن (Dark Mode)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Switch(
+                        checked = isDarkModeEnabled,
+                        onCheckedChange = { isDarkModeEnabled = it }
+                    )
+                }
+
+                Divider()
+
+                // Toggle 2: Notifications
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.NotificationsActive, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("الإشعارات المباشرة للحي", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Switch(
+                        checked = isNotificationsEnabled,
+                        onCheckedChange = { isNotificationsEnabled = it }
+                    )
+                }
+
+                Divider()
+
+                // Toggle 3: GPS
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.MyLocation, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("تحديد موقع خدماتي الجغرافي", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Switch(
+                        checked = isGpsLocationEnabled,
+                        onCheckedChange = { isGpsLocationEnabled = it }
+                    )
+                }
+
+                Divider()
+
+                // Language
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Translate, null, tint = Color.Gray, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("لغة التطبيق", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Box {
+                        TextButton(onClick = { isLanguageDropdownExpanded = true }) {
+                            Text(appLanguage, fontWeight = FontWeight.Bold)
+                        }
+                        DropdownMenu(
+                            expanded = isLanguageDropdownExpanded,
+                            onDismissRequest = { isLanguageDropdownExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("العربية") },
+                                onClick = {
+                                    appLanguage = "العربية"
+                                    isLanguageDropdownExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("English (Soon)") },
+                                onClick = {
+                                    isLanguageDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("حفظ وإغلاق", fontWeight = FontWeight.Bold)
                     }
                 }
             }

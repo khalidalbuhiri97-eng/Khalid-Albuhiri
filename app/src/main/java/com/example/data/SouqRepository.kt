@@ -216,7 +216,15 @@ class SouqRepository(private val dao: SouqDao) {
     // --- Neighborhood Posts ---
     val allPosts: Flow<List<PostEntity>> = dao.getAllPosts()
 
-    suspend fun createPost(authorId: String, authorName: String, authorRole: String, avatarColor: Int, content: String, neighborhood: String) {
+    suspend fun createPost(
+        authorId: String,
+        authorName: String,
+        authorRole: String,
+        avatarColor: Int,
+        content: String,
+        neighborhood: String,
+        authorAvatarUri: String? = null
+    ) {
         dao.insertPost(
             PostEntity(
                 authorId = authorId,
@@ -224,21 +232,47 @@ class SouqRepository(private val dao: SouqDao) {
                 authorRole = authorRole,
                 authorAvatarColor = avatarColor,
                 content = content,
-                neighborhood = neighborhood
+                neighborhood = neighborhood,
+                authorAvatarUri = authorAvatarUri
             )
         )
     }
 
     suspend fun likePost(postId: Int) {
-        // Query post, toggle like state
-        // (Just a simple simulation for prototyping)
+        val post = dao.getPostById(postId)
+        if (post != null) {
+            val updatedIsLiked = !post.isLikedByMe
+            val updatedLikesCount = if (updatedIsLiked) post.likesCount + 1 else maxOf(0, post.likesCount - 1)
+            dao.updatePost(
+                post.copy(
+                    isLikedByMe = updatedIsLiked,
+                    likesCount = updatedLikesCount
+                )
+            )
+        }
+    }
+
+    suspend fun incrementCommentsCount(postId: Int) {
+        val post = dao.getPostById(postId)
+        if (post != null) {
+            dao.updatePost(post.copy(commentsCount = post.commentsCount + 1))
+        }
     }
 
 
     // --- Offers ---
     val allOffers: Flow<List<OfferEntity>> = dao.getAllOffers()
 
-    suspend fun createOffer(techId: String, techName: String, profession: String, avatarColor: Int, title: String, description: String, price: String) {
+    suspend fun createOffer(
+        techId: String,
+        techName: String,
+        profession: String,
+        avatarColor: Int,
+        title: String,
+        description: String,
+        price: String,
+        techAvatarUri: String? = null
+    ) {
         dao.insertOffer(
             OfferEntity(
                 techId = techId,
@@ -247,7 +281,8 @@ class SouqRepository(private val dao: SouqDao) {
                 techAvatarColor = avatarColor,
                 title = title,
                 description = description,
-                price = price
+                price = price,
+                techAvatarUri = techAvatarUri
             )
         )
     }
@@ -293,6 +328,69 @@ class SouqRepository(private val dao: SouqDao) {
         dao.markNotificationsAsRead(userId)
     }
 
+    // --- Jobs / Gigs ---
+    val allJobs: Flow<List<JobEntity>> = dao.getAllJobs()
+
+    suspend fun createJob(
+        title: String,
+        category: String,
+        description: String,
+        postedBy: String,
+        posterId: String,
+        posterPhone: String,
+        payment: String,
+        neighborhood: String,
+        jobType: String,
+        posterAvatarUri: String? = null
+    ) {
+        val job = JobEntity(
+            title = title,
+            category = category,
+            description = description,
+            postedBy = postedBy,
+            posterId = posterId,
+            posterPhone = posterPhone,
+            payment = payment,
+            neighborhood = neighborhood,
+            jobType = jobType,
+            posterAvatarUri = posterAvatarUri
+        )
+        dao.insertJob(job)
+    }
+
+    suspend fun applyToJob(jobId: Int) {
+        val job = dao.getJobById(jobId) ?: return
+        val updated = job.copy(
+            applicantsCount = job.applicantsCount + 1,
+            isAppliedByMe = true
+        )
+        dao.updateJob(updated)
+    }
+
+    // --- Channel Messages ---
+    fun getChannelMessages(channelId: String): Flow<List<ChannelMessageEntity>> =
+        dao.getChannelMessages(channelId)
+
+    suspend fun createChannelMessage(
+        channelId: String,
+        senderId: String,
+        senderName: String,
+        senderAvatarColor: Int,
+        senderRole: String,
+        content: String,
+        senderAvatarUri: String? = null
+    ) {
+        val msg = ChannelMessageEntity(
+            channelId = channelId,
+            senderId = senderId,
+            senderName = senderName,
+            senderAvatarColor = senderAvatarColor,
+            senderRole = senderRole,
+            content = content,
+            senderAvatarUri = senderAvatarUri
+        )
+        dao.insertChannelMessage(msg)
+    }
 
     // --- Prepulate Database if empty ---
     suspend fun checkAndPrepopulate(context: Context) {
@@ -311,7 +409,8 @@ class SouqRepository(private val dao: SouqDao) {
                     lat = 24.81,
                     lng = 46.63,
                     avatarColor = 0,
-                    bio = "أبحث عن أفضل جودة وسرعة استجابة للخدمات المنزلية."
+                    bio = "أبحث عن أفضل جودة وسرعة استجابة للخدمات المنزلية.",
+                    avatarUri = "https://api.dicebear.com/7.x/adventurer/png?seed=khaled"
                 ),
                 UserEntity(
                     uid = "cust_sara",
@@ -323,9 +422,9 @@ class SouqRepository(private val dao: SouqDao) {
                     lat = 24.73,
                     lng = 46.77,
                     avatarColor = 1,
-                    bio = "مرحباً بكم، مهتمة بمتابعة عروض الصيانة الدورية لمنزلي."
+                    bio = "مرحباً بكم، مهتمة بمتابعة عروض الصيانة الدورية لمنزلي.",
+                    avatarUri = "https://api.dicebear.com/7.x/adventurer/png?seed=sara"
                 ),
-                // Technicians
                 UserEntity(
                     uid = "tech_ahmed",
                     name = "أحمد النجّار",
@@ -341,7 +440,8 @@ class SouqRepository(private val dao: SouqDao) {
                     experienceYears = 7,
                     isOnline = true,
                     rating = 4.8,
-                    completedOrders = 42
+                    completedOrders = 42,
+                    avatarUri = "https://api.dicebear.com/7.x/adventurer/png?seed=ahmed"
                 ),
                 UserEntity(
                     uid = "tech_mohammed",
@@ -358,8 +458,10 @@ class SouqRepository(private val dao: SouqDao) {
                     experienceYears = 10,
                     isOnline = true,
                     rating = 4.9,
-                    completedOrders = 85
+                    completedOrders = 85,
+                    avatarUri = "https://api.dicebear.com/7.x/adventurer/png?seed=mohammed"
                 ),
+
                 UserEntity(
                     uid = "tech_khaled",
                     name = "خالد السباك",
@@ -535,6 +637,177 @@ class SouqRepository(private val dao: SouqDao) {
                 )
             )
             testRequests.forEach { dao.insertRequest(it) }
+
+            // Insert initial Jobs
+            val testJobs = listOf(
+                JobEntity(
+                    title = "مطلوب معلم خصوصي لتدريس الرياضيات (ثانوي)",
+                    category = "تعليم",
+                    description = "أبحث عن معلم متمكن لتدريس ابني في الصف الثاني ثانوي لمادة الرياضيات مجاور لحي الياسمين.",
+                    postedBy = "خالد البحيصي",
+                    posterId = "cust_khaled",
+                    posterPhone = "0511111111",
+                    payment = "١٢٠ ريال / ساعة",
+                    neighborhood = "حي الياسمين",
+                    jobType = "عمل حر / مؤقت"
+                ),
+                JobEntity(
+                    title = "مطلوب موصل شحنات جزئي لمتجر بالحي",
+                    category = "توصيل",
+                    description = "متجر تمور بالحي يبحث عن شاب نشيط لتوصيل الطلبات داخل الحي وخارجه لفترة المساء من ٤م إلى ٩م.",
+                    postedBy = "سارة أحمد",
+                    posterId = "cust_sara",
+                    posterPhone = "0522222222",
+                    payment = "٢٥٠٠ ريال شهرياً",
+                    neighborhood = "حي الروضة",
+                    jobType = "دوام جزئي"
+                ),
+                JobEntity(
+                    title = "فني صيانة دورية لحديقة المجمع السكني",
+                    category = "صيانة",
+                    description = "مطلوب فني زراعي لقص الحشائش وتنسيق الحديقة العامة للمجمع السكني مرة كل أسبوعين.",
+                    postedBy = "مدير النظام (أبو فهد)",
+                    posterId = "admin_super",
+                    posterPhone = "0599999999",
+                    payment = "٣٥٠ ريال شهرياً",
+                    neighborhood = "حي الياسمين",
+                    jobType = "عمل حر / مؤقت"
+                ),
+                JobEntity(
+                    title = "بائعة دوام جزئي في كشك عطور ومستحضرات تجميل",
+                    category = "أخرى",
+                    description = "مطلوب بائعة متمكنة ولبقة للعمل في كشك عطور بمجمع تجاري لفترة المساء من ٥م إلى ١٠م.",
+                    postedBy = "سارة أحمد",
+                    posterId = "cust_sara",
+                    posterPhone = "0522222222",
+                    payment = "٣٠٠٠ ريال شهرياً",
+                    neighborhood = "حي الياسمين",
+                    jobType = "دوام جزئي"
+                ),
+                JobEntity(
+                    title = "مطلوب مصمم جرافيك لتهيئة حسابات التواصل الاجتماعي",
+                    category = "أخرى",
+                    description = "أبحث عن مصمم محترف لتصميم بنرات ومنشورات انستغرام وتويتر لمتجر محلي ناشئ بالحي.",
+                    postedBy = "خالد البحيصي",
+                    posterId = "cust_khaled",
+                    posterPhone = "0511111111",
+                    payment = "١٥٠٠ ريال مقطوع",
+                    neighborhood = "حي الروضة",
+                    jobType = "عمل حر / مؤقت"
+                ),
+                JobEntity(
+                    title = "معلمة لغة إنجليزية للتأسيس والمتابعة للأطفال",
+                    category = "تعليم",
+                    description = "مطلوب معلمة ذات خبرة لتأسيس طفلين في المرحلة الابتدائية بمادة اللغة الإنجليزية ٣ مرات أسبوعياً بموقعنا.",
+                    postedBy = "سلوى محمد",
+                    posterId = "cust_salwa",
+                    posterPhone = "0533333333",
+                    payment = "١٥٠ ريال / حصة",
+                    neighborhood = "حي الياسمين",
+                    jobType = "عمل حر / مؤقت"
+                ),
+                JobEntity(
+                    title = "مندوب توصيل شحنات وتوزيع سريعة داخل الحي",
+                    category = "توصيل",
+                    description = "مطلوب مندوب بسيارته لتوصيل طلبات تموينية وخضار لسكان الحي التابعين لجمعية تعاونية محلية.",
+                    postedBy = "مدير النظام (أبو فهد)",
+                    posterId = "admin_super",
+                    posterPhone = "0599999999",
+                    payment = "١٥ ريال لكل طلب",
+                    neighborhood = "حي الياسمين",
+                    jobType = "عمل حر / مؤقت"
+                )
+            )
+            testJobs.forEach { dao.insertJob(it) }
+
+            // Insert initial channel messages
+            val testChannelMessages = listOf(
+                // General
+                ChannelMessageEntity(
+                    channelId = "general",
+                    senderId = "cust_khaled",
+                    senderName = "خالد البحيصي",
+                    senderAvatarColor = 0,
+                    senderRole = "CUSTOMER",
+                    content = "السلام عليكم يا جيران، وش رأيكم في إنارة ممشى الحي الجديدة؟"
+                ),
+                ChannelMessageEntity(
+                    channelId = "general",
+                    senderId = "cust_sara",
+                    senderName = "سارة أحمد",
+                    senderAvatarColor = 1,
+                    senderRole = "CUSTOMER",
+                    content = "وعليكم السلام، خطوة ممتازة جداً وتشجع على رياضة المشي في المساء مع الأبناء."
+                ),
+                ChannelMessageEntity(
+                    channelId = "general",
+                    senderId = "tech_ahmed",
+                    senderName = "أحمد النجّار",
+                    senderAvatarColor = 2,
+                    senderRole = "TECHNICIAN",
+                    content = "ما شاء الله، حركية جميلة بالحي والإنارة مريحة جداً للعين."
+                ),
+                // News
+                ChannelMessageEntity(
+                    channelId = "news",
+                    senderId = "admin_super",
+                    senderName = "مدير النظام (أبو فهد)",
+                    senderAvatarColor = 7,
+                    senderRole = "ADMIN",
+                    content = "📢 تنبيه: سيتم إغلاق المخرج الشرقي للحي غداً لأعمال الصيانة الإسفلتية من الساعة ٨ صباحاً وحتى ٤ مساءً. نرجو استخدام المخرج الجنوبي البديل."
+                ),
+                ChannelMessageEntity(
+                    channelId = "news",
+                    senderId = "cust_khaled",
+                    senderName = "خالد البحيصي",
+                    senderAvatarColor = 0,
+                    senderRole = "CUSTOMER",
+                    content = "شكراً جزيلاً لجهودكم وتنبيهكم يا بو فهد."
+                ),
+                // Services
+                ChannelMessageEntity(
+                    channelId = "services",
+                    senderId = "tech_ahmed",
+                    senderName = "أحمد النجّار",
+                    senderAvatarColor = 2,
+                    senderRole = "TECHNICIAN",
+                    content = "يا جيران، أي شخص عنده أبواب خشب تصدر صريراً بسبب الرطوبة، يكتب سؤاله هنا وسأجيبكم مجاناً بطرق علاجها السهلة."
+                ),
+                ChannelMessageEntity(
+                    channelId = "services",
+                    senderId = "tech_khaled",
+                    senderName = "خالد السباك",
+                    senderAvatarColor = 4,
+                    senderRole = "TECHNICIAN",
+                    content = "مبادرة رائعة يا بو سليمان! وأنا أيضاً بخدمتكم لأي استفسار حول كشف تسريبات المياه أو ضعف تدفق المياه بالحنفيات."
+                ),
+                ChannelMessageEntity(
+                    channelId = "services",
+                    senderId = "cust_sara",
+                    senderName = "سارة أحمد",
+                    senderAvatarColor = 1,
+                    senderRole = "CUSTOMER",
+                    content = "الله يجزاكم خير فنيينا المبدعين على هذا الدعم والتعاون المستمر لأهل الحي."
+                ),
+                // Market
+                ChannelMessageEntity(
+                    channelId = "market",
+                    senderId = "cust_khaled",
+                    senderName = "خالد البحيصي",
+                    senderAvatarColor = 0,
+                    senderRole = "CUSTOMER",
+                    content = "عندي طاولة طعام خشبية ممتازة بـ ٦ كراسي، شبه جديدة وخالية من العيوب، للبيع لأعلى سومة والتحميل على المشتري."
+                ),
+                ChannelMessageEntity(
+                    channelId = "market",
+                    senderId = "tech_ahmed",
+                    senderName = "أحمد النجّار",
+                    senderAvatarColor = 2,
+                    senderRole = "TECHNICIAN",
+                    content = "هل بالإمكان تصوير الطاولة يا بو سليمان؟ عندي زبون يبحث عن طاولة خشب جيدة."
+                )
+            )
+            testChannelMessages.forEach { dao.insertChannelMessage(it) }
         }
     }
 }

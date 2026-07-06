@@ -69,6 +69,9 @@ interface SouqDao {
     @Update
     suspend fun updatePost(post: PostEntity)
 
+    @Query("SELECT * FROM neighborhood_posts WHERE id = :postId")
+    suspend fun getPostById(postId: Int): PostEntity?
+
 
     // --- Offers ---
     @Query("SELECT * FROM offers ORDER BY createdAt DESC")
@@ -98,4 +101,24 @@ interface SouqDao {
 
     @Query("UPDATE notifications SET isRead = 1 WHERE recipientId = :recipientId")
     suspend fun markNotificationsAsRead(recipientId: String)
+
+    // --- Jobs / Gigs ---
+    @Query("SELECT * FROM jobs ORDER BY createdAt DESC")
+    fun getAllJobs(): Flow<List<JobEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertJob(job: JobEntity)
+
+    @Update
+    suspend fun updateJob(job: JobEntity)
+
+    @Query("SELECT * FROM jobs WHERE id = :id LIMIT 1")
+    suspend fun getJobById(id: Int): JobEntity?
+
+    // --- Channel Messages ---
+    @Query("SELECT * FROM channel_messages WHERE channelId = :channelId ORDER BY createdAt ASC")
+    fun getChannelMessages(channelId: String): Flow<List<ChannelMessageEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertChannelMessage(msg: ChannelMessageEntity)
 }

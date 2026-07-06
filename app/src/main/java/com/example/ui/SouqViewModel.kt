@@ -58,6 +58,29 @@ class SouqViewModel(application: Application) : AndroidViewModel(application) {
         initialValue = emptyList()
     )
 
+    // --- Jobs and Gigs ---
+    val allJobs: StateFlow<List<JobEntity>> = repository.allJobs.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    // --- Active Channel Discussion ---
+    private val _activeChannelId = MutableStateFlow("general")
+    val activeChannelId: StateFlow<String> = _activeChannelId.asStateFlow()
+
+    val activeChannelMessages: StateFlow<List<ChannelMessageEntity>> = _activeChannelId
+        .flatMapLatest { channelId -> repository.getChannelMessages(channelId) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun selectChannel(channelId: String) {
+        _activeChannelId.value = channelId
+    }
+
     // Current user notifications
     val notifications: StateFlow<List<NotificationEntity>> = _currentUser
         .flatMapLatest { user ->
@@ -100,6 +123,24 @@ class SouqViewModel(application: Application) : AndroidViewModel(application) {
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    // Neighborhood sub tab state (0: Feed, 1: Jobs, 2: Channels)
+    private val _neighborhoodSubTab = MutableStateFlow(0)
+    val neighborhoodSubTab: StateFlow<Int> = _neighborhoodSubTab.asStateFlow()
+
+    fun setNeighborhoodSubTab(tabIndex: Int) {
+        _neighborhoodSubTab.value = tabIndex
+    }
+
+    // Custom Channels state
+    private val _customChannels = MutableStateFlow<List<CustomChannel>>(emptyList())
+    val customChannels: StateFlow<List<CustomChannel>> = _customChannels.asStateFlow()
+
+    fun createChannel(title: String, description: String, iconName: String = "forum", colorHex: String = "#4CAF50") {
+        val newId = "chan_" + System.currentTimeMillis()
+        val newChan = CustomChannel(newId, title, description, iconName, colorHex)
+        _customChannels.value = _customChannels.value + newChan
+    }
 
     // Chat room messaging
     private val _selectedRequestId = MutableStateFlow<Int?>(null)
@@ -305,7 +346,9 @@ class SouqViewModel(application: Application) : AndroidViewModel(application) {
         bio: String,
         profession: String = "",
         experienceYears: Int = 0,
-        isOnline: Boolean = true
+        isOnline: Boolean = true,
+        avatarColor: Int = -1,
+        avatarUri: String? = "KEEP_EXISTING"
     ) {
         val current = _currentUser.value ?: return
         viewModelScope.launch {
@@ -317,7 +360,9 @@ class SouqViewModel(application: Application) : AndroidViewModel(application) {
                 bio = bio,
                 profession = if (current.role == "TECHNICIAN") profession else "",
                 experienceYears = if (current.role == "TECHNICIAN") experienceYears else 0,
-                isOnline = isOnline
+                isOnline = isOnline,
+                avatarColor = if (avatarColor != -1) avatarColor else current.avatarColor,
+                avatarUri = if (avatarUri == "KEEP_EXISTING") current.avatarUri else avatarUri
             )
             repository.updateUser(updated)
             _currentUser.value = updated
@@ -388,7 +433,49 @@ class SouqViewModel(application: Application) : AndroidViewModel(application) {
                 authorRole = current.role,
                 avatarColor = current.avatarColor,
                 content = content,
-                neighborhood = current.neighborhood
+                neighborhood = current.neighborhood,
+                authorAvatarUri = current.avatarUri
+            )
+            onSuccess()
+        }
+    }
+
+    fun likePost(postId: Int) {
+        viewModelScope.launch {
+            repository.likePost(postId)
+        }
+    }
+
+    fun incrementCommentsCount(postId: Int) {
+        viewModelScope.launch {
+            repository.incrementCommentsCount(postId)
+        }
+    }
+
+    fun createAdvertisement(title: String, description: String, price: String, onSuccess: () -> Unit) {
+        val current = _currentUser.value ?: return
+        viewModelScope.launch {
+            // 1. Create the offer
+            repository.createOffer(
+                techId = current.uid,
+                techName = current.name,
+                profession = if (current.role == "TECHNICIAN") current.profession else "إعلان جيران",
+                avatarColor = current.avatarColor,
+                title = title,
+                description = description,
+                price = price,
+                techAvatarUri = current.avatarUri
+            )
+            // 2. Create the post
+            val formattedContent = "📢 [إعلان مميز]\n\n📌 $title\n\n$description\n\n💰 السعر: $price"
+            repository.createPost(
+                authorId = current.uid,
+                authorName = current.name,
+                authorRole = current.role,
+                avatarColor = current.avatarColor,
+                content = formattedContent,
+                neighborhood = current.neighborhood,
+                authorAvatarUri = current.avatarUri
             )
             onSuccess()
         }
@@ -405,7 +492,8 @@ class SouqViewModel(application: Application) : AndroidViewModel(application) {
                 avatarColor = current.avatarColor,
                 title = title,
                 description = description,
-                price = price
+                price = price,
+                techAvatarUri = current.avatarUri
             )
             onSuccess()
         }
@@ -480,6 +568,46 @@ class SouqViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // --- Jobs and Channels Actions ---
+    fun createJob(title: String, category: String, description: String, payment: String, jobType: String) {
+        val current = _currentUser.value ?: return
+        viewModelScope.launch {
+            repository.createJob(
+                title = title,
+                category = category,
+                description = description,
+                postedBy = current.name,
+                posterId = current.uid,
+                posterPhone = current.phoneNumber,
+                payment = payment,
+                neighborhood = current.neighborhood.ifEmpty { "حي الياسمين" },
+                jobType = jobType,
+                posterAvatarUri = current.avatarUri
+            )
+        }
+    }
+
+    fun applyToJob(jobId: Int) {
+        viewModelScope.launch {
+            repository.applyToJob(jobId)
+        }
+    }
+
+    fun sendChannelMessage(channelId: String, content: String) {
+        val current = _currentUser.value ?: return
+        viewModelScope.launch {
+            repository.createChannelMessage(
+                channelId = channelId,
+                senderId = current.uid,
+                senderName = current.name,
+                senderAvatarColor = current.avatarColor,
+                senderRole = current.role,
+                content = content,
+                senderAvatarUri = current.avatarUri
+            )
+        }
+    }
+
     // --- Admin panel functions ---
     fun adminDeleteUser(uid: String) {
         viewModelScope.launch {
@@ -505,3 +633,11 @@ class SouqViewModelFactory(private val application: Application) : ViewModelProv
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
+
+data class CustomChannel(
+    val id: String,
+    val title: String,
+    val description: String,
+    val iconName: String = "forum",
+    val colorHex: String = "#4CAF50"
+)

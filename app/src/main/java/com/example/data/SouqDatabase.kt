@@ -12,9 +12,11 @@ import androidx.room.RoomDatabase
         PostEntity::class,
         OfferEntity::class,
         MessageEntity::class,
-        NotificationEntity::class
+        NotificationEntity::class,
+        JobEntity::class,
+        ChannelMessageEntity::class
     ],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class SouqDatabase : RoomDatabase() {
