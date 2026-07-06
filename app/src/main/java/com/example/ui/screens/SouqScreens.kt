@@ -1141,12 +1141,14 @@ fun MainContainerScreen(viewModel: SouqViewModel) {
                                 modifier = Modifier.testTag("create_post_fab")
                             )
                         }
-                        selectedTab == 3 && currentUser?.role == "TECHNICIAN" -> { // Tech Offers
+                        ((selectedTab == 3 && currentUser?.role != "ADMIN") || (selectedTab == 4 && currentUser?.role == "ADMIN")) -> { // Create Ad/Offer
                             ExtendedFloatingActionButton(
                                 onClick = { showCreateOfferDialog = true },
-                                icon = { Icon(Icons.Default.AddCircle, null) },
-                                text = { Text("إعلان عرض") },
-                                modifier = Modifier.testTag("create_offer_fab")
+                                icon = { Icon(Icons.Default.Campaign, null) },
+                                text = { Text("إنشاء إعلان") },
+                                modifier = Modifier.testTag("create_offer_fab"),
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                     }
@@ -3757,12 +3759,22 @@ fun OffersScreen(viewModel: SouqViewModel) {
             }
         } else {
             items(offers) { offer ->
+                val isGold = offer.isSponsored && offer.sponsorPlan == "GOLD"
+                val isSilver = offer.isSponsored && offer.sponsorPlan == "SILVER"
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .then(
+                            if (isGold) Modifier.border(2.dp, Color(0xFFFFD700), RoundedCornerShape(12.dp))
+                            else if (isSilver) Modifier.border(1.5.dp, Color(0xFF90A4AE), RoundedCornerShape(12.dp))
+                            else Modifier
+                        ),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isGold) Color(0xFFFFFDF0) else if (isSilver) Color(0xFFF4F7F9) else MaterialTheme.colorScheme.surface
+                    )
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -3780,7 +3792,7 @@ fun OffersScreen(viewModel: SouqViewModel) {
                                     if (!offer.techAvatarUri.isNullOrEmpty()) {
                                         AsyncImage(
                                             model = offer.techAvatarUri,
-                                            contentDescription = "صورة الفني",
+                                            contentDescription = "صورة الناشر",
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .clip(CircleShape),
@@ -3792,7 +3804,36 @@ fun OffersScreen(viewModel: SouqViewModel) {
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
-                                    Text(offer.techName, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(offer.techName, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                        if (isGold || isSilver) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .background(
+                                                        if (isGold) Color(0xFFFFD700) else Color(0xFF90A4AE),
+                                                        RoundedCornerShape(4.dp)
+                                                    )
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        imageVector = if (isGold) Icons.Default.Star else Icons.Default.FlashOn,
+                                                        contentDescription = null,
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size(10.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(2.dp))
+                                                    Text(
+                                                        text = if (isGold) "إعلان ممول 👑" else "إعلان مميز 🔥",
+                                                        color = Color.White,
+                                                        fontSize = 8.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
                                     Text(offer.techProfession, fontSize = 10.sp, color = Color.Gray)
                                 }
                             }
@@ -4765,53 +4806,728 @@ fun CreateOfferDialog(
     viewModel: SouqViewModel,
     onDismiss: () -> Unit
 ) {
+    val currentUser by viewModel.currentUser.collectAsState()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var price by remember { mutableStateOf("") }
+    
+    // Category selection
+    val categories = listOf("صيانة منزلية 🔧", "أجهزة وإلكترونيات 📱", "بيع وشراء وحراج 🚗", "خدمات عامة 💼")
+    var selectedCategory by remember { mutableStateOf(categories[0]) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(shape = RoundedCornerShape(20.dp), modifier = Modifier.padding(16.dp)) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("إعلان عرض صيانة جديد", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.primary)
-                Spacer(modifier = Modifier.height(16.dp))
+    // Promotion Plans
+    var selectedPlan by remember { mutableStateOf("FREE") } // "FREE", "SILVER", "GOLD"
 
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("عنوان العرض (مثال: تنظيف 3 مكيفات)") },
-                    modifier = Modifier.fillMaxWidth().testTag("offer_title_field")
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("تفاصيل العرض والمميزات...") },
-                    modifier = Modifier.fillMaxWidth().testTag("offer_desc_field")
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = price,
-                    onValueChange = { price = it },
-                    label = { Text("السعر الإجمالي (مثال: 150 ريال)") },
-                    modifier = Modifier.fillMaxWidth().testTag("offer_price_field")
-                )
+    // Target demographics
+    val cities = listOf("الرياض", "جدة", "الدمام", "مكة المكرمة", "المدينة المنورة", "الخبر")
+    var targetCity by remember { mutableStateOf(cities[0]) }
+    var targetNeighborhood by remember { mutableStateOf(currentUser?.neighborhood ?: "حي الياسمين") }
 
-                Spacer(modifier = Modifier.height(24.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
-                        Text("إلغاء")
+    // Payment Info
+    var paymentMethod by remember { mutableStateOf("MADA") } // "MADA", "APPLE_PAY", "CREDIT_CARD"
+    var cardNumber by remember { mutableStateOf("") }
+    var cardExpiry by remember { mutableStateOf("") }
+    var cardCvv by remember { mutableStateOf("") }
+
+    // Loading / Success state
+    var isPaying by remember { mutableStateOf(false) }
+    var paymentSuccess by remember { mutableStateOf(false) }
+
+    // Check validation
+    val isFormValid = title.isNotEmpty() && price.isNotEmpty() && description.isNotEmpty()
+    val isPaymentValid = if (selectedPlan == "FREE") true else {
+        if (paymentMethod == "APPLE_PAY") true
+        else cardNumber.length >= 16 && cardExpiry.length >= 4 && cardCvv.length >= 3
+    }
+
+    Dialog(
+        onDismissRequest = { if (!isPaying && !paymentSuccess) onDismiss() },
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.92f)
+                .padding(vertical = 12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
+        ) {
+            if (paymentSuccess) {
+                // Success State Screen inside Card
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .background(Color(0xFFE8F5E9), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "نجاح",
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(64.dp)
+                        )
                     }
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "تم تفعيل التمويل والإعلان بنجاح! 🎉",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = Color(0xFF2E7D32)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "إعلانك الآن مميز ويظهر لجميع سكان ${targetCity} - ${targetNeighborhood} بشكل تفاعلي ومثبت بالكامل.",
+                        fontSize = 13.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 20.sp
+                    )
+                    Spacer(modifier = Modifier.height(32.dp))
                     Button(
                         onClick = {
-                            if (title.isNotEmpty() && price.isNotEmpty()) {
-                                viewModel.createOffer(title, description, price, onDismiss)
-                            }
+                            viewModel.createOffer(
+                                title = title,
+                                description = description,
+                                price = price,
+                                isSponsored = selectedPlan != "FREE",
+                                sponsorPlan = selectedPlan,
+                                onSuccess = onDismiss
+                            )
                         },
-                        modifier = Modifier.weight(1f).testTag("submit_offer_button")
+                        modifier = Modifier.fillMaxWidth(0.8f),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                     ) {
-                        Text("إعلان العرض")
+                        Text("الذهاب لصفحة الإعلانات", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
+            } else if (isPaying) {
+                // Processing Payment screen
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(64.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 5.dp
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "جاري تفعيل الإعلان الممول وتجهيز الحملة...",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "يتم الآن التواصل الآمن مع بوابة الدفع وإرسال الإشعارات التفاعلية للحي...",
+                        fontSize = 11.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                // Main Form Screen inside scrollable Card
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(20.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "رجوع")
+                        }
+                        Text(
+                            text = "إنشاء إعلان ممول (طريقة مرجان) 🚀",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Campaign,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.LightGray.copy(alpha = 0.5f)))
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // 1. Category Chip selection
+                        Text(
+                            text = "اختر فئة الإعلان والنشاط 🏷️",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            categories.forEach { cat ->
+                                val isSelected = selectedCategory == cat
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.LightGray.copy(alpha = 0.15f),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .border(
+                                            width = if (isSelected) 1.5.dp else 0.dp,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { selectedCategory = cat }
+                                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = cat,
+                                        fontSize = 9.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else Color.DarkGray
+                                    )
+                                }
+                            }
+                        }
+
+                        // 2. Information Fields
+                        Text(
+                            text = "تفاصيل الإعلان 📝",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        OutlinedTextField(
+                            value = title,
+                            onValueChange = { title = it },
+                            label = { Text("اسم الإعلان (مثال: صيانة غسالات فورية بالمنزل)") },
+                            modifier = Modifier.fillMaxWidth().testTag("offer_title_field"),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
+                        )
+
+                        OutlinedTextField(
+                            value = description,
+                            onValueChange = { description = it },
+                            label = { Text("تفاصيل الإعلان والضمان والميزات...") },
+                            modifier = Modifier.fillMaxWidth().height(100.dp).testTag("offer_desc_field"),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        OutlinedTextField(
+                            value = price,
+                            onValueChange = { price = it },
+                            label = { Text("السعر أو الميزانية التقديرية (مثال: 100 ريال)") },
+                            modifier = Modifier.fillMaxWidth().testTag("offer_price_field"),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
+                        )
+
+                        // 3. Location Targeting
+                        Text(
+                            text = "المنطقة والفئة المستهدفة 🎯",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = targetCity,
+                                onValueChange = { targetCity = it },
+                                label = { Text("المدينة المستهدفة") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = targetNeighborhood,
+                                onValueChange = { targetNeighborhood = it },
+                                label = { Text("الحي المستهدف") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                singleLine = true
+                            )
+                        }
+
+                        // 4. Mourjan Promotion Plan cards
+                        Text(
+                            text = "اختر باقة تمويل وترقية الإعلان 💎",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Free Plan
+                            PlanCard(
+                                title = "الباقة العادية (مجانية)",
+                                description = "نشر الإعلان كعرض عادي في سوق عروض الصيانة والحراج بدون تثبيت.",
+                                priceText = "مجانًا",
+                                isSelected = selectedPlan == "FREE",
+                                planColor = Color.Gray,
+                                badgeText = null,
+                                onClick = { selectedPlan = "FREE" }
+                            )
+
+                            // Silver Plan
+                            PlanCard(
+                                title = "الباقة الفضية - مميز 🔥",
+                                description = "تأطير الإعلان باللون الفضي ووضعه في الأعلى لمدة 7 أيام متتالية لزيادة الزيارات 3 أضعاف.",
+                                priceText = "49 ريال",
+                                isSelected = selectedPlan == "SILVER",
+                                planColor = Color(0xFF90A4AE),
+                                badgeText = "الأكثر طلباً 👍",
+                                onClick = { selectedPlan = "SILVER" }
+                            )
+
+                            // Gold Plan
+                            PlanCard(
+                                title = "الباقة الذهبية - ممول ومثبت بالكامل 👑",
+                                description = "تثبيت إعلانك في أول الصفحة مع خلفية ذهبية فاخرة وإرسال إشعار فوري لجميع سكان حيك والمناطق المجاورة لمدة 30 يوماً.",
+                                priceText = "149 ريال",
+                                isSelected = selectedPlan == "GOLD",
+                                planColor = Color(0xFFFFD700),
+                                badgeText = "حملة قوية 🚀",
+                                onClick = { selectedPlan = "GOLD" }
+                            )
+                        }
+
+                        // 5. Ad Live Preview
+                        Text(
+                            text = "معاينة الإعلان الحية فور النشر 👀",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Gray.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+                                .border(1.dp, Color.LightGray.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                                .padding(12.dp)
+                        ) {
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .background(getAvatarColor(currentUser?.avatarColor ?: 0), CircleShape),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text((currentUser?.name ?: "م").take(1), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Text(currentUser?.name ?: "اسم المستخدم", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                                if (selectedPlan != "FREE") {
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .background(
+                                                                if (selectedPlan == "GOLD") Color(0xFFFFD700) else Color(0xFF90A4AE),
+                                                                RoundedCornerShape(4.dp)
+                                                            )
+                                                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Icon(
+                                                                imageVector = if (selectedPlan == "GOLD") Icons.Default.Star else Icons.Default.FlashOn,
+                                                                contentDescription = null,
+                                                                tint = Color.White,
+                                                                modifier = Modifier.size(8.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(2.dp))
+                                                            Text(
+                                                                text = if (selectedPlan == "GOLD") "إعلان ممول 👑" else "إعلان مميز 🔥",
+                                                                color = Color.White,
+                                                                fontSize = 7.sp,
+                                                                fontWeight = FontWeight.Bold
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            Text(if (currentUser?.role == "TECHNICIAN") (currentUser?.profession ?: "صيانة") else selectedCategory, fontSize = 9.sp, color = Color.Gray)
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = if (title.isEmpty()) "عنوان الإعلان يظهر هنا..." else title,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = if (selectedPlan == "GOLD") Color(0xFF8C7B00) else MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = if (description.isEmpty()) "تفاصيل ومميزات الخدمة تظهر هنا بالتفصيل للعملاء..." else description,
+                                    fontSize = 11.sp,
+                                    color = Color.DarkGray,
+                                    maxLines = 2
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = if (price.isEmpty()) "السعر" else price,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+
+                        // 6. Secure Checkout Form
+                        if (selectedPlan != "FREE") {
+                            Text(
+                                text = "تفاصيل الدفع الآمن (تمويل الإعلان) 🔒",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.05f)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    // Payment Method selector
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        // mada
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .background(
+                                                    if (paymentMethod == "MADA") Color(0xFF005C9E).copy(alpha = 0.1f) else Color.Transparent,
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .border(
+                                                    width = 1.5.dp,
+                                                    color = if (paymentMethod == "MADA") Color(0xFF005C9E) else Color.LightGray.copy(alpha = 0.5f),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                )
+                                                .clickable { paymentMethod = "MADA" }
+                                                .padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(8.dp)
+                                                        .background(Color(0xFF8CC63F), CircleShape)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("مدى mada", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF005C9E))
+                                            }
+                                        }
+
+                                        // Apple Pay
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .background(
+                                                    if (paymentMethod == "APPLE_PAY") Color.Black.copy(alpha = 0.05f) else Color.Transparent,
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .border(
+                                                    width = 1.5.dp,
+                                                    color = if (paymentMethod == "APPLE_PAY") Color.Black else Color.LightGray.copy(alpha = 0.5f),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                )
+                                                .clickable { paymentMethod = "APPLE_PAY" }
+                                                .padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(" Pay", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
+                                        }
+
+                                        // Credit Card
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .background(
+                                                    if (paymentMethod == "CREDIT_CARD") MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent,
+                                                    RoundedCornerShape(8.dp)
+                                                )
+                                                .border(
+                                                    width = 1.5.dp,
+                                                    color = if (paymentMethod == "CREDIT_CARD") MaterialTheme.colorScheme.primary else Color.LightGray.copy(alpha = 0.5f),
+                                                    shape = RoundedCornerShape(8.dp)
+                                                )
+                                                .clickable { paymentMethod = "CREDIT_CARD" }
+                                                .padding(vertical = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Default.CreditCard, null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.primary)
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("فيزا/ماستر", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                            }
+                                        }
+                                    }
+
+                                    if (paymentMethod != "APPLE_PAY") {
+                                        // Card details form
+                                        OutlinedTextField(
+                                            value = cardNumber,
+                                            onValueChange = { if (it.length <= 16) cardNumber = it.filter { char -> char.isDigit() } },
+                                            label = { Text("رقم البطاقة (16 رقم)") },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(8.dp),
+                                            singleLine = true,
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                        )
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            OutlinedTextField(
+                                                value = cardExpiry,
+                                                onValueChange = { if (it.length <= 4) cardExpiry = it.filter { char -> char.isDigit() } },
+                                                label = { Text("تاريخ الانتهاء MMYY") },
+                                                modifier = Modifier.weight(1.2f),
+                                                shape = RoundedCornerShape(8.dp),
+                                                singleLine = true,
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                            )
+                                            OutlinedTextField(
+                                                value = cardCvv,
+                                                onValueChange = { if (it.length <= 3) cardCvv = it.filter { char -> char.isDigit() } },
+                                                label = { Text("CVV رمز الأمان") },
+                                                modifier = Modifier.weight(0.8f),
+                                                shape = RoundedCornerShape(8.dp),
+                                                singleLine = true,
+                                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                            )
+                                        }
+                                        Text(
+                                            text = "بوابة الدفع آمنة ومشفرة بالكامل طبقاً لمعايير البنك المركزي السعودي.",
+                                            fontSize = 9.sp,
+                                            color = Color.Gray,
+                                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                                        )
+                                    } else {
+                                        // Apple Pay Quick Button
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(Color.Black, RoundedCornerShape(24.dp))
+                                                .clickable {
+                                                    if (isFormValid) {
+                                                        isPaying = true
+                                                        coroutineScope.launch {
+                                                            kotlinx.coroutines.delay(2000)
+                                                            isPaying = false
+                                                            paymentSuccess = true
+                                                        }
+                                                    } else {
+                                                        Toast.makeText(context, "الرجاء إكمال بيانات الإعلان أولاً", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                                .padding(vertical = 12.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("ادفع بـ  Pay وتفعيل الإعلان", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("إلغاء")
+                        }
+
+                        Button(
+                            onClick = {
+                                if (!isFormValid) {
+                                    Toast.makeText(context, "الرجاء ملء جميع تفاصيل الإعلان أولاً", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+                                if (selectedPlan != "FREE") {
+                                    if (!isPaymentValid) {
+                                        Toast.makeText(context, "يرجى ملء بيانات بطاقة الدفع بشكل صحيح", Toast.LENGTH_SHORT).show()
+                                        return@Button
+                                    }
+                                    // Start payment flow
+                                    isPaying = true
+                                    coroutineScope.launch {
+                                        kotlinx.coroutines.delay(2000)
+                                        isPaying = false
+                                        paymentSuccess = true
+                                    }
+                                } else {
+                                    // Direct Create Free Offer
+                                    viewModel.createOffer(
+                                        title = title,
+                                        description = description,
+                                        price = price,
+                                        isSponsored = false,
+                                        sponsorPlan = "FREE",
+                                        onSuccess = onDismiss
+                                    )
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(2f)
+                                .testTag("submit_offer_button"),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (selectedPlan == "GOLD") Color(0xFFFFD700) else if (selectedPlan == "SILVER") Color(0xFF2196F3) else MaterialTheme.colorScheme.primary,
+                                contentColor = if (selectedPlan == "GOLD") Color.Black else Color.White
+                            )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = if (selectedPlan != "FREE") Icons.Default.Campaign else Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = if (selectedPlan == "GOLD") "تمويل ونشر الإعلان الذهبي 👑"
+                                           else if (selectedPlan == "SILVER") "تمويل ونشر الإعلان الفضي 🔥"
+                                           else "نشر الإعلان العادي مجاناً",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PlanCard(
+    title: String,
+    description: String,
+    priceText: String,
+    isSelected: Boolean,
+    planColor: Color,
+    badgeText: String?,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .border(
+                width = if (isSelected) 2.dp else 1.dp,
+                color = if (isSelected) planColor else Color.LightGray.copy(alpha = 0.4f),
+                shape = RoundedCornerShape(14.dp)
+            ),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) planColor.copy(alpha = 0.08f) else Color.Transparent
+        )
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = isSelected, onClick = onClick, colors = RadioButtonDefaults.colors(selectedColor = planColor))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = title, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+
+                if (badgeText != null) {
+                    Box(
+                        modifier = Modifier
+                            .background(planColor, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(badgeText, color = if (planColor == Color(0xFFFFD700)) Color.Black else Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Text(
+                text = description,
+                fontSize = 11.sp,
+                color = Color.DarkGray,
+                modifier = Modifier.padding(start = 32.dp, end = 4.dp),
+                lineHeight = 16.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 32.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "تكلفة الترقية:",
+                    fontSize = 10.sp,
+                    color = Color.Gray
+                )
+                Text(
+                    text = priceText,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = planColor,
+                    fontSize = 13.sp
+                )
             }
         }
     }

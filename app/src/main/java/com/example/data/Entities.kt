@@ -74,7 +74,9 @@ data class OfferEntity(
     val description: String,
     val price: String,
     val createdAt: Long = System.currentTimeMillis(),
-    val techAvatarUri: String? = null
+    val techAvatarUri: String? = null,
+    val isSponsored: Boolean = false,
+    val sponsorPlan: String = "" // "FREE", "GOLD", "PLATINUM"
 )
 
 @Entity(tableName = "messages")

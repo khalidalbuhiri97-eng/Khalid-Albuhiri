@@ -275,7 +275,9 @@ class SouqRepository(private val dao: SouqDao) {
         title: String,
         description: String,
         price: String,
-        techAvatarUri: String? = null
+        techAvatarUri: String? = null,
+        isSponsored: Boolean = false,
+        sponsorPlan: String = ""
     ) {
         dao.insertOffer(
             OfferEntity(
@@ -286,7 +288,9 @@ class SouqRepository(private val dao: SouqDao) {
                 title = title,
                 description = description,
                 price = price,
-                techAvatarUri = techAvatarUri
+                techAvatarUri = techAvatarUri,
+                isSponsored = isSponsored,
+                sponsorPlan = sponsorPlan
             )
         )
     }

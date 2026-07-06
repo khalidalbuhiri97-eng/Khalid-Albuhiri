@@ -600,19 +600,27 @@ class SouqViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun createOffer(title: String, description: String, price: String, onSuccess: () -> Unit) {
+    fun createOffer(
+        title: String,
+        description: String,
+        price: String,
+        onSuccess: () -> Unit,
+        isSponsored: Boolean = false,
+        sponsorPlan: String = ""
+    ) {
         val current = _currentUser.value ?: return
-        if (current.role != "TECHNICIAN") return
         viewModelScope.launch {
             repository.createOffer(
                 techId = current.uid,
                 techName = current.name,
-                profession = current.profession,
+                profession = if (current.role == "TECHNICIAN") current.profession else if (isSponsored) "إعلان ممول" else "إعلان عام",
                 avatarColor = current.avatarColor,
                 title = title,
                 description = description,
                 price = price,
-                techAvatarUri = current.avatarUri
+                techAvatarUri = current.avatarUri,
+                isSponsored = isSponsored,
+                sponsorPlan = sponsorPlan
             )
             onSuccess()
         }

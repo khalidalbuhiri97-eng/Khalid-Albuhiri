@@ -16,7 +16,7 @@ import androidx.room.RoomDatabase
         JobEntity::class,
         ChannelMessageEntity::class
     ],
-    version = 3,
+    version = 5,
     exportSchema = false
 )
 abstract class SouqDatabase : RoomDatabase() {
