@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق سوق - منصة الخدمات المحلية والمشاريع الممولة</title>
+    <!-- Cairo Arabic Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- AlpineJS for Interactive State -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif'],
+                    },
+                    colors: {
+                        souq: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            200: '#fed7aa',
+                            300: '#fdbb74',
+                            400: '#f97316',
+                            500: '#ea580c',
+                            600: '#ca8a04', // Gold
+                            700: '#c2410c',
+                            800: '#9a3412',
+                            900: '#7c2d12',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body x-data="souqApp()" class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Global Notification Banner from Admin Announcement -->
+    <template x-if="globalAnnouncement">
+        <div class="bg-orange-600 text-white py-3 px-4 shadow-md text-center font-semibold text-sm sticky top-0 z-50 flex items-center justify-between transition-all duration-300">
+            <div></div>
+            <div class="flex items-center gap-2 justify-center">
+                <i class="fa-solid fa-bullhorn animate-bounce"></i>
+                <span x-text="globalAnnouncement"></span>
+            </div>
+            <button @click="globalAnnouncement = ''" class="hover:text-slate-200 text-lg font-bold px-2">&times;</button>
+        </div>
+    </template>
+
+    <!-- Header Section -->
+    <header class="bg-white border-b border-slate-100 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center gap-3 cursor-pointer" @click="currentTab = 'home'">
+                <div class="bg-gradient-to-tr from-orange-500 to-amber-500 text-white p-2 rounded-2xl shadow-md shadow-orange-500/20">
+                    <i class="fa-solid fa-store text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent">سوق</h1>
+                    <p class="text-slate-400 text-xs font-medium">الخدمات المحلية والتمويل الذكي</p>
+                </div>
+            </div>
+
+            <!-- Search Bar (Desktop) -->
+            <div class="hidden md:flex items-center flex-1 max-w-md mx-8 relative">
+                <input type="text" x-model="searchQuery" placeholder="ابحث عن سباك، كهربائي، تكييف في حيك..." 
+                       class="w-full bg-slate-50 border border-slate-200 text-sm rounded-full py-2.5 pr-10 pl-4 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all">
+                <i class="fa-solid fa-magnifying-glass absolute right-4 text-slate-400"></i>
+            </div>
+
+            <!-- User Actions & Profile Profile -->
+            <div class="flex items-center gap-3">
+                <!-- Create Ad Button -->
+                <button @click="showCreateAdModal = true" 
+                        class="hidden sm:flex items-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm px-4 py-2.5 rounded-full shadow-lg shadow-orange-500/20 transition-all transform hover:scale-[1.02]">
+                    <i class="fa-solid fa-bullhorn text-sm"></i>
+                    <span>أنشئ إعلان ممول 🚀</span>
+                </button>
+
+                <!-- Role Selector -->
+                <div class="bg-slate-100 p-1 rounded-xl flex items-center border border-slate-200">
+                    <button @click="switchRole('client')" :class="userRole === 'client' ? 'bg-white shadow text-orange-600 font-bold' : 'text-slate-500 hover:text-slate-800'" class="text-xs px-2.5 py-1.5 rounded-lg transition-all">عميل</button>
+                    <button @click="switchRole('tech')" :class="userRole === 'tech' ? 'bg-white shadow text-orange-600 font-bold' : 'text-slate-500 hover:text-slate-800'" class="text-xs px-2.5 py-1.5 rounded-lg transition-all">فني</button>
+                    <button @click="switchRole('admin')" :class="userRole === 'admin' ? 'bg-white shadow text-orange-600 font-bold' : 'text-slate-500 hover:text-slate-800'" class="text-xs px-2.5 py-1.5 rounded-lg transition-all">مدير</button>
+                </div>
+
+                <!-- User Avatar/Info -->
+                <div class="flex items-center gap-2 pl-2 border-r border-slate-200 mr-2">
+                    <div class="w-9 h-9 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-extrabold border-2 border-orange-500/20 shadow-sm">
+                        <span x-text="currentUser.name.charAt(0)"></span>
+                    </div>
+                    <div class="hidden lg:block text-right">
+                        <p class="text-xs font-bold" x-text="currentUser.name"></p>
+                        <p class="text-[10px] text-slate-400 font-medium" x-text="currentUser.neighborhood"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-6xl mx-auto px-4 py-6 flex-1 w-full flex flex-col md:flex-row gap-6">
+        
+        <!-- Sidebar Navigation (Desktop) -->
+        <aside class="hidden md:flex flex-col gap-2 w-64 shrink-0">
+            <div class="bg-white border border-slate-100 rounded-3xl p-4 shadow-sm sticky top-24 flex flex-col gap-1.5">
+                <button @click="currentTab = 'home'" :class="currentTab === 'home' ? 'bg-orange-50 text-orange-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-sm transition-all text-right">
+                    <i class="fa-solid fa-house text-lg"></i>
+                    <span>الرئيسية</span>
+                </button>
+                <button @click="currentTab = 'offers'" :class="currentTab === 'offers' ? 'bg-orange-50 text-orange-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-sm transition-all text-right">
+                    <i class="fa-solid fa-tags text-lg"></i>
+                    <span>سوق العروض الممولة</span>
+                    <span class="bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mr-auto" x-text="getSponsoredCount()"></span>
+                </button>
+                <button @click="currentTab = 'feed'" :class="currentTab === 'feed' ? 'bg-orange-50 text-orange-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-sm transition-all text-right">
+                    <i class="fa-solid fa-people-roof text-lg"></i>
+                    <span>منشورات الحي</span>
+                </button>
+                <button @click="currentTab = 'chats'" :class="currentTab === 'chats' ? 'bg-orange-50 text-orange-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-sm transition-all text-right relative">
+                    <i class="fa-solid fa-comments text-lg"></i>
+                    <span>المحادثات</span>
+                    <div class="w-2.5 h-2.5 bg-red-500 rounded-full mr-auto"></div>
+                </button>
+                <button @click="currentTab = 'orders'" :class="currentTab === 'orders' ? 'bg-orange-50 text-orange-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-sm transition-all text-right">
+                    <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+                    <span>متابعة الطلبات</span>
+                    <span class="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full mr-auto" x-text="orders.length"></span>
+                </button>
+
+                <!-- Admin Tab Only visible if admin or simulated -->
+                <div class="border-t border-slate-100 my-3 pt-3"></div>
+                
+                <button @click="currentTab = 'admin'" :class="currentTab === 'admin' ? 'bg-purple-50 text-purple-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-sm transition-all text-right">
+                    <i class="fa-solid fa-chart-line text-lg"></i>
+                    <span>لوحة تحكم المدير</span>
+                    <span class="bg-purple-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded mr-auto">مشرف</span>
+                </button>
+                <button @click="currentTab = 'profile'" :class="currentTab === 'profile' ? 'bg-orange-50 text-orange-600 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="flex items-center gap-3 w-full px-4 py-3 rounded-2xl text-sm transition-all text-right">
+                    <i class="fa-solid fa-user-gear text-lg"></i>
+                    <span>الملف الشخصي</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <section class="flex-1 min-w-0 flex flex-col gap-6">
+            
+            <!-- Tab 1: HOME DASHBOARD -->
+            <div x-show="currentTab === 'home'" class="flex flex-col gap-6 transition-all duration-300">
+                <!-- Search bar (Mobile only) -->
+                <div class="md:hidden flex items-center relative">
+                    <input type="text" x-model="searchQuery" placeholder="ابحث عن سباك، كهربائي، تكييف..." 
+                           class="w-full bg-white border border-slate-200 text-sm rounded-2xl py-3 pr-10 pl-4 focus:outline-none focus:ring-2 focus:ring-orange-500">
+                    <i class="fa-solid fa-magnifying-glass absolute right-4 text-slate-400"></i>
+                </div>
+
+                <!-- Hero Header Box -->
+                <div class="bg-gradient-to-l from-slate-900 via-slate-800 to-orange-950 text-white rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-xl">
+                    <div class="relative z-10 max-w-lg">
+                        <span class="bg-orange-500/20 text-orange-400 text-xs font-extrabold px-3 py-1 rounded-full border border-orange-500/30 uppercase tracking-widest">تحديثات سوق 2026</span>
+                        <h2 class="text-2xl md:text-3.5xl font-black mt-3 leading-tight">سوق الخدمات المحلية الأقرب إليك! 🌟</h2>
+                        <p class="text-slate-300 text-sm mt-3 leading-relaxed">
+                            تواصل فوراً ومباشرة مع أمهر فنيي الكهرباء، السباكة، النجارة، والتكييف في حيك. بدون وسطاء، بدون عمولات، وبشكل تفاعلي بالكامل.
+                        </p>
+                        <div class="flex flex-wrap items-center gap-3 mt-6">
+                            <button @click="showCreateAdModal = true" class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-sm px-6 py-3 rounded-2xl shadow-lg transition-all transform hover:scale-[1.02]">
+                                أعلن عن عرضك الممول الآن 🚀
+                            </button>
+                            <button @click="currentTab = 'offers'" class="bg-white/10 hover:bg-white/20 text-white font-bold text-sm px-5 py-3 rounded-2xl transition-all border border-white/10">
+                                استعراض سوق العروض
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Decorative patterns -->
+                    <div class="absolute -left-10 -bottom-10 w-64 h-64 bg-orange-600/10 rounded-full blur-3xl"></div>
+                    <div class="absolute -right-10 -top-10 w-48 h-48 bg-amber-500/10 rounded-full blur-2xl"></div>
+                    <i class="fa-solid fa-bullhorn absolute left-8 bottom-6 text-white/5 text-9xl hidden lg:block transform -rotate-12"></i>
+                </div>
+
+                <!-- Categories Section -->
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-grip-vertical text-orange-500"></i>
+                        <span>تصفح الخدمات حسب التصنيف 🏷️</span>
+                    </h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        <template x-for="cat in categories" :key="cat.name">
+                            <div @click="filterCategory(cat.name)" 
+                                 :class="selectedCategory === cat.name ? 'border-orange-500 bg-orange-50/50 shadow-orange-500/5' : 'border-slate-100 hover:border-slate-300 hover:shadow-md bg-white'"
+                                 class="border-2 rounded-2xl p-4 text-center cursor-pointer transition-all flex flex-col items-center gap-2.5">
+                                <div :class="cat.bgColor" class="w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-inner">
+                                    <i :class="cat.icon"></i>
+                                </div>
+                                <span class="text-xs font-black text-slate-700" x-text="cat.name"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Promoted & Featured Ads (Mourjan-Style Slider) -->
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-crown text-amber-500"></i>
+                            <span>العروض والمشاريع الممولة المتاحة 👑</span>
+                        </h3>
+                        <button @click="currentTab = 'offers'" class="text-orange-500 text-xs font-bold hover:underline">عرض الكل (سوق العروض)</button>
+                    </div>
+                    
+                    <div class="flex flex-col gap-4">
+                        <!-- Filter ads by category or query -->
+                        <template x-for="offer in filteredOffers().slice(0, 4)" :key="offer.id">
+                            <div :class="getOfferCardClass(offer)" class="border-2 rounded-3xl p-5 bg-white relative overflow-hidden transition-all duration-300 shadow-sm flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                                <!-- Featured badge for Gold/Silver -->
+                                <template x-if="offer.isSponsored">
+                                    <div :class="offer.sponsorPlan === 'GOLD' ? 'bg-amber-500 text-slate-900 border-amber-400' : 'bg-slate-400 text-white border-slate-300'" 
+                                         class="absolute left-0 top-0 py-1 px-4 text-[10px] font-black rounded-br-2xl border-r border-b uppercase flex items-center gap-1.5 shadow-sm">
+                                        <i :class="offer.sponsorPlan === 'GOLD' ? 'fa-solid fa-crown' : 'fa-solid fa-bolt'"></i>
+                                        <span x-text="offer.sponsorPlan === 'GOLD' ? 'إعلان ممول ذهبي 👑' : 'إعلان مميز فضي 🔥'"></span>
+                                    </div>
+                                </template>
+
+                                <div class="flex gap-4 items-center flex-1">
+                                    <!-- Avatar -->
+                                    <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold text-lg shadow-md shrink-0" 
+                                         :style="'background-color: ' + offer.techAvatarColor">
+                                        <span x-text="offer.techName.charAt(0)"></span>
+                                    </div>
+                                    <div class="space-y-1">
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="text-sm font-black text-slate-500" x-text="offer.techName"></h4>
+                                            <span class="text-[10px] text-slate-400 font-medium" x-text="offer.techProfession"></span>
+                                        </div>
+                                        <h3 class="text-base font-extrabold text-slate-900" x-text="offer.title"></h3>
+                                        <p class="text-xs text-slate-500 line-clamp-2 max-w-xl" x-text="offer.description"></p>
+                                        <div class="flex items-center gap-3 text-[10px] text-slate-400 mt-2">
+                                            <span><i class="fa-solid fa-location-dot text-orange-500 mr-1"></i> <span x-text="offer.targetCity || 'الرياض'"></span> - <span x-text="offer.targetNeighborhood || 'حي الياسمين'"></span></span>
+                                            <span>•</span>
+                                            <span><i class="fa-solid fa-calendar mr-1"></i> منذ ساعة</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-4 w-full md:w-auto shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 justify-between md:justify-end">
+                                    <div class="text-right">
+                                        <p class="text-[10px] text-slate-400 font-bold">التكلفة والضمان</p>
+                                        <p class="text-lg font-black text-orange-600" x-text="offer.price"></p>
+                                    </div>
+                                    <button @click="bookOffer(offer)" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-black px-6 py-3 rounded-2xl shadow transition-all">
+                                        حجز وتواصل فوري 💬
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template x-if="filteredOffers().length === 0">
+                            <div class="text-center py-12 bg-white rounded-3xl border border-slate-100">
+                                <i class="fa-solid fa-tags text-4xl text-slate-300 animate-pulse"></i>
+                                <p class="text-slate-400 text-sm mt-3">لا توجد عروض أو إعلانات ممولة تناسب هذا التصنيف حالياً.</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Nearby Technicians Section -->
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-user-tie text-orange-500"></i>
+                        <span>فنيون نشطون في حيك الآن 📍</span>
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <template x-for="tech in technicians" :key="tech.id">
+                            <div class="bg-white border border-slate-100 rounded-3xl p-5 hover:shadow-lg transition-all relative flex flex-col justify-between">
+                                <!-- Status Dot -->
+                                <div class="absolute left-5 top-5 flex items-center gap-1 bg-green-50 text-green-600 text-[10px] font-bold px-2 py-1 rounded-full border border-green-200">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping"></span>
+                                    <span>متاح للعمل</span>
+                                </div>
+
+                                <div class="flex gap-3.5 items-start">
+                                    <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-extrabold text-lg shadow shrink-0" 
+                                         :style="'background-color: ' + tech.avatarColor">
+                                        <span x-text="tech.name.charAt(0)"></span>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-sm font-black text-slate-800" x-text="tech.name"></h4>
+                                        <p class="text-xs text-orange-500 font-bold" x-text="tech.profession"></p>
+                                        <div class="flex items-center gap-1 mt-1 text-slate-400 text-xs">
+                                            <span class="text-yellow-400"><i class="fa-solid fa-star"></i></span>
+                                            <span class="font-bold text-slate-700" x-text="tech.rating"></span>
+                                            <span>•</span>
+                                            <span x-text="tech.experience + ' خبرة'"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p class="text-xs text-slate-500 mt-3 leading-relaxed" x-text="tech.bio"></p>
+
+                                <div class="flex items-center justify-between border-t border-slate-100 pt-3.5 mt-4">
+                                    <div>
+                                        <p class="text-[10px] text-slate-400 font-medium">الأحياء المغطاة</p>
+                                        <p class="text-xs font-bold text-slate-700" x-text="tech.neighborhoods"></p>
+                                    </div>
+                                    <button @click="openTechProfile(tech)" class="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all">
+                                        طلب الخدمة 📞
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 2: OFFERS MARKET -->
+            <div x-show="currentTab === 'offers'" class="flex flex-col gap-6 transition-all duration-300">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-800">سوق العروض والإعلانات المحلية 🚀</h2>
+                        <p class="text-slate-500 text-sm mt-1">تصفح كافة العروض الممولة والعامة في المنطقة مباشرة بدون وسطاء.</p>
+                    </div>
+                    <button @click="showCreateAdModal = true" class="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-sm px-5 py-3 rounded-2xl shadow transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-plus-circle"></i>
+                        <span>إنشاء إعلان ممول جديد</span>
+                    </button>
+                </div>
+
+                <!-- Filter Row -->
+                <div class="flex flex-wrap items-center gap-2 bg-white p-3 border border-slate-100 rounded-2xl shadow-sm">
+                    <button @click="selectedAdFilter = 'ALL'" :class="selectedAdFilter === 'ALL' ? 'bg-orange-500 text-white font-bold' : 'text-slate-600 hover:bg-slate-50'" class="text-xs px-4 py-2 rounded-xl transition-all">الكل</button>
+                    <button @click="selectedAdFilter = 'GOLD'" :class="selectedAdFilter === 'GOLD' ? 'bg-amber-500 text-slate-900 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-1"><i class="fa-solid fa-crown text-[10px]"></i> العروض الذهبية</button>
+                    <button @click="selectedAdFilter = 'SILVER'" :class="selectedAdFilter === 'SILVER' ? 'bg-slate-400 text-white font-bold' : 'text-slate-600 hover:bg-slate-50'" class="text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-1"><i class="fa-solid fa-bolt text-[10px]"></i> العروض المميزة</button>
+                    <button @click="selectedAdFilter = 'FREE'" :class="selectedAdFilter === 'FREE' ? 'bg-slate-100 text-slate-700 font-bold' : 'text-slate-600 hover:bg-slate-50'" class="text-xs px-4 py-2 rounded-xl transition-all">الإعلانات المجانية</button>
+                </div>
+
+                <!-- Offers Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <template x-for="offer in filteredAdOffers()" :key="offer.id">
+                        <div :class="getOfferCardClass(offer)" class="border-2 rounded-3xl p-5 bg-white relative overflow-hidden transition-all duration-300 shadow-sm flex flex-col justify-between">
+                            <!-- Featured badge -->
+                            <template x-if="offer.isSponsored">
+                                <div :class="offer.sponsorPlan === 'GOLD' ? 'bg-amber-500 text-slate-900 border-amber-400' : 'bg-slate-400 text-white border-slate-300'" 
+                                     class="absolute left-0 top-0 py-1 px-4 text-[9px] font-black rounded-br-2xl border-r border-b uppercase flex items-center gap-1 shadow-sm">
+                                    <i :class="offer.sponsorPlan === 'GOLD' ? 'fa-solid fa-crown' : 'fa-solid fa-bolt'"></i>
+                                    <span x-text="offer.sponsorPlan === 'GOLD' ? 'ذهبي' : 'فضي'"></span>
+                                </div>
+                            </template>
+
+                            <div>
+                                <div class="flex items-center justify-between mb-3.5">
+                                    <div class="flex gap-2.5 items-center">
+                                        <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-extrabold text-sm" 
+                                             :style="'background-color: ' + offer.techAvatarColor">
+                                            <span x-text="offer.techName.charAt(0)"></span>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-xs font-black text-slate-800" x-text="offer.techName"></h4>
+                                            <p class="text-[9px] text-slate-400" x-text="offer.techProfession"></p>
+                                        </div>
+                                    </div>
+                                    <p class="text-sm font-black text-orange-600" x-text="offer.price"></p>
+                                </div>
+
+                                <h3 class="text-sm font-extrabold text-slate-900 mb-2" x-text="offer.title"></h3>
+                                <p class="text-xs text-slate-500 leading-relaxed mb-4" x-text="offer.description"></p>
+                            </div>
+
+                            <div class="border-t border-slate-100 pt-3.5 flex items-center justify-between mt-auto">
+                                <span class="text-[10px] text-slate-400"><i class="fa-solid fa-location-dot text-orange-400 mr-1"></i> <span x-text="offer.targetCity"></span> - <span x-text="offer.targetNeighborhood"></span></span>
+                                <button @click="bookOffer(offer)" class="bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold px-4 py-2 rounded-xl shadow transition-all">
+                                    حجز الخدمة والتواصل 💬
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Tab 3: NEIGHBORHOOD TIMELINE (منشورات الحي) -->
+            <div x-show="currentTab === 'feed'" class="flex flex-col gap-6 transition-all duration-300">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-800">منشورات وحكايات الحي 🏠</h2>
+                    <p class="text-slate-500 text-sm mt-1">ابحث، ناقش، أعلن أو اسأل جيرانك عن أفضل الفنيين والخدمات في الحي.</p>
+                </div>
+
+                <!-- Create Post Card -->
+                <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
+                    <h3 class="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">ماذا يدور في ذهنك اليوم يا جار؟</h3>
+                    <div class="flex gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 font-black shrink-0">
+                            <span x-text="currentUser.name.charAt(0)"></span>
+                        </div>
+                        <div class="flex-1 space-y-3">
+                            <textarea x-model="newPostContent" placeholder="اكتب سؤالك أو مشاركتك هنا... (مثال: أبحث عن سباك ممتاز لتغيير شبكة المياه)" 
+                                      class="w-full bg-slate-50 border border-slate-100 rounded-2xl p-3 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition-all resize-none h-24"></textarea>
+                            
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="flex gap-2">
+                                    <template x-for="tag in ['سؤال فني', 'توصية', 'عرض خاص', 'نصيحة']">
+                                        <button @click="newPostTag = tag" 
+                                                :class="newPostTag === tag ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                                                class="text-[10px] font-bold px-3 py-1.5 rounded-lg transition-all" x-text="tag"></button>
+                                    </template>
+                                </div>
+                                <button @click="createPost()" class="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-5 py-2 rounded-xl transition-all">
+                                    نشر المنشور 📣
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feed list -->
+                <div class="flex flex-col gap-4">
+                    <template x-for="post in posts" :key="post.id">
+                        <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
+                            <div class="flex items-center justify-between">
+                                <div class="flex gap-3 items-center">
+                                    <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black" :style="'background-color: ' + post.avatarColor">
+                                        <span x-text="post.author.charAt(0)"></span>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-black text-slate-800" x-text="post.author"></h4>
+                                        <p class="text-[9px] text-slate-400" x-text="post.time + ' • ' + post.neighborhood"></p>
+                                    </div>
+                                </div>
+                                <span class="bg-orange-50 text-orange-600 text-[10px] font-bold px-2.5 py-1 rounded-lg border border-orange-100" x-text="post.tag"></span>
+                            </div>
+
+                            <p class="text-xs text-slate-700 leading-relaxed mt-4" x-text="post.content"></p>
+
+                            <div class="flex items-center gap-4 border-t border-slate-100 pt-3.5 mt-4 text-xs text-slate-400">
+                                <button @click="likePost(post)" class="hover:text-red-500 transition-all flex items-center gap-1.5 font-semibold">
+                                    <i class="fa-solid fa-heart" :class="post.liked ? 'text-red-500' : ''"></i>
+                                    <span x-text="post.likes + ' إعجاب'"></span>
+                                </button>
+                                <button @click="showComments(post)" class="hover:text-orange-500 transition-all flex items-center gap-1.5 font-semibold">
+                                    <i class="fa-solid fa-comment"></i>
+                                    <span x-text="post.comments.length + ' تعليقات'"></span>
+                                </button>
+                            </div>
+
+                            <!-- Comment Sub-section -->
+                            <div x-show="post.showComments" class="mt-4 border-t border-slate-50 pt-4 space-y-3">
+                                <div class="flex gap-2">
+                                    <input type="text" x-model="post.newComment" placeholder="أضف تعليقك هنا..." 
+                                           class="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500">
+                                    <button @click="addComment(post)" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-xl">تعليق</button>
+                                </div>
+                                
+                                <div class="space-y-2 max-h-40 overflow-y-auto">
+                                    <template x-for="comment in post.comments">
+                                        <div class="bg-slate-50 p-2.5 rounded-xl text-xs">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="font-black text-slate-700" x-text="comment.author"></span>
+                                                <span class="text-[9px] text-slate-400">منذ دقيقة</span>
+                                            </div>
+                                            <p class="text-slate-600" x-text="comment.text"></p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Tab 4: MESSAGES & CHATS -->
+            <div x-show="currentTab === 'chats'" class="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm flex h-[580px] transition-all duration-300">
+                <!-- Chat List Sidebar -->
+                <div class="w-1/3 border-l border-slate-100 flex flex-col">
+                    <div class="p-4 border-b border-slate-100">
+                        <h3 class="font-black text-slate-800 text-base">صندوق الوارد 📥</h3>
+                        <p class="text-[10px] text-slate-400 mt-0.5">محادثات مباشرة مع المهنيين والعملاء</p>
+                    </div>
+                    <div class="flex-1 overflow-y-auto">
+                        <template x-for="chat in chats" :key="chat.id">
+                            <div @click="activeChat = chat" 
+                                 :class="activeChat.id === chat.id ? 'bg-orange-50/50 border-r-4 border-orange-500' : 'hover:bg-slate-50'"
+                                 class="p-4 flex gap-3 cursor-pointer border-b border-slate-50 transition-all">
+                                <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black shrink-0" :style="'background-color: ' + chat.avatarColor">
+                                    <span x-text="chat.name.charAt(0)"></span>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center justify-between mb-0.5">
+                                        <h4 class="text-xs font-black text-slate-800 truncate" x-text="chat.name"></h4>
+                                        <span class="text-[8px] text-slate-400" x-text="chat.time"></span>
+                                    </div>
+                                    <p class="text-[10px] text-slate-500 truncate" x-text="chat.lastMessage"></p>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Chat Active Conversation -->
+                <div class="flex-1 flex flex-col bg-slate-50">
+                    <!-- Chat Header -->
+                    <div class="p-4 bg-white border-b border-slate-100 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black" :style="'background-color: ' + activeChat.avatarColor">
+                                <span x-text="activeChat.name.charAt(0)"></span>
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-black text-slate-800" x-text="activeChat.name"></h4>
+                                <p class="text-[9px] text-green-500 font-bold"><i class="fa-solid fa-circle text-[6px] mr-1"></i> متصل الآن</p>
+                            </div>
+                        </div>
+                        <button class="text-slate-400 hover:text-slate-600 text-sm"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+                    </div>
+
+                    <!-- Chat messages window -->
+                    <div class="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
+                        <template x-for="msg in activeChat.messages">
+                            <div :class="msg.sender === 'me' ? 'self-end bg-orange-500 text-white rounded-tr-none' : 'self-start bg-white text-slate-700 rounded-tl-none'" 
+                                 class="max-w-[70%] p-3 rounded-2xl text-xs shadow-sm flex flex-col gap-1">
+                                <p x-text="msg.text" class="leading-relaxed"></p>
+                                <span :class="msg.sender === 'me' ? 'text-orange-100' : 'text-slate-400'" class="text-[8px] self-end" x-text="msg.time"></span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Chat typing area -->
+                    <div class="p-4 bg-white border-t border-slate-100 flex items-center gap-2">
+                        <button class="text-slate-400 hover:text-slate-600 px-1 text-sm"><i class="fa-solid fa-image"></i></button>
+                        <button class="text-slate-400 hover:text-slate-600 px-1 text-sm"><i class="fa-solid fa-microphone"></i></button>
+                        <input type="text" x-model="chatInput" @keyup.enter="sendChatMessage()" placeholder="اكتب رسالتك الآمنة هنا..." 
+                               class="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500">
+                        <button @click="sendChatMessage()" class="bg-orange-500 hover:bg-orange-600 text-white rounded-xl p-2 w-9 h-9 flex items-center justify-center transition-all">
+                            <i class="fa-solid fa-paper-plane transform rotate-180"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 5: ACTIVE SERVICES ORDERS -->
+            <div x-show="currentTab === 'orders'" class="flex flex-col gap-6 transition-all duration-300">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-800">متابعة طلبات الخدمات النشطة 🛠️</h2>
+                    <p class="text-slate-500 text-sm mt-1">تتبع رحلة طلباتك وحدث حالتها مباشرة وبشكل تفاعلي للتجربة.</p>
+                </div>
+
+                <div class="flex flex-col gap-4">
+                    <template x-for="order in orders" :key="order.id">
+                        <div class="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4 mb-4">
+                                <div class="flex gap-3 items-center">
+                                    <div class="bg-orange-100 text-orange-600 w-11 h-11 rounded-2xl flex items-center justify-center text-lg shadow-inner">
+                                        <i class="fa-solid fa-screwdriver-wrench"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-sm font-black text-slate-800" x-text="order.serviceType"></h3>
+                                        <p class="text-[10px] text-slate-400 font-medium" x-text="'رقم الطلب #' + order.id"></p>
+                                    </div>
+                                </div>
+                                <span :class="getStatusBadgeClass(order.status)" class="text-xs font-black px-3.5 py-1.5 rounded-full border" x-text="getStatusText(order.status)"></span>
+                            </div>
+
+                            <p class="text-xs text-slate-600 leading-relaxed mb-4" x-text="order.description"></p>
+
+                            <!-- Interactive Progress Bar for demo -->
+                            <div class="my-6">
+                                <div class="flex items-center justify-between text-[10px] font-bold text-slate-400 mb-2">
+                                    <span :class="order.status === 'NEW' ? 'text-orange-600 font-black' : ''">جديد</span>
+                                    <span :class="order.status === 'APPROVED' ? 'text-orange-600 font-black' : ''">تم القبول</span>
+                                    <span :class="order.status === 'IN_TRANSIT' ? 'text-orange-600 font-black' : ''">في الطريق</span>
+                                    <span :class="order.status === 'IN_PROGRESS' ? 'text-orange-600 font-black' : ''">بدأ العمل</span>
+                                    <span :class="order.status === 'COMPLETED' ? 'text-green-600 font-black' : ''">مكتمل 🎉</span>
+                                </div>
+                                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden flex">
+                                    <div :style="'width: ' + getStatusPercentage(order.status) + '%'" class="bg-orange-500 h-full rounded-full transition-all duration-500"></div>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-slate-50 pt-4 mt-4">
+                                <div class="flex items-center gap-2 text-xs">
+                                    <span class="text-slate-400">الفني المسؤول:</span>
+                                    <span class="font-black text-slate-700" x-text="order.techName"></span>
+                                </div>
+                                
+                                <div class="flex items-center gap-2 self-end sm:self-auto">
+                                    <!-- Status update simulator -->
+                                    <button @click="advanceOrderStatus(order)" x-show="order.status !== 'COMPLETED'" class="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all">
+                                        تحديث حالة الطلب للتجربة 🔄
+                                    </button>
+                                    <button @click="openRatingModal(order)" x-show="order.status === 'COMPLETED' && !order.rated" class="bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-black px-4 py-2.5 rounded-xl transition-all">
+                                        تقييم الفني الآن ⭐
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="orders.length === 0">
+                        <div class="text-center py-16 bg-white rounded-3xl border border-slate-100">
+                            <i class="fa-solid fa-receipt text-4xl text-slate-300"></i>
+                            <p class="text-slate-400 text-sm mt-3">لا توجد لديك طلبات خدمة حالية.</p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Tab 6: ADMIN CONTROL PANEL (لوحة تحكم المدير) -->
+            <div x-show="currentTab === 'admin'" class="flex flex-col gap-6 transition-all duration-300">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-800">لوحة تحكم مدير النظام ⚙️</h2>
+                    <p class="text-slate-500 text-sm mt-1">إحصائيات المنصة، إدارة الإعلانات الممولة، Moderation وبث الإشعارات.</p>
+                </div>
+
+                <!-- Admin Stats Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white border border-slate-100 p-5 rounded-3xl shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase">إجمالي المسجلين</p>
+                        <h3 class="text-2xl font-black text-slate-800 mt-1">1,248</h3>
+                        <p class="text-green-500 text-[10px] font-bold mt-1"><i class="fa-solid fa-circle-up mr-1"></i> +12% هذا الأسبوع</p>
+                    </div>
+                    <div class="bg-white border border-slate-100 p-5 rounded-3xl shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase">إجمالي الفنيين</p>
+                        <h3 class="text-2xl font-black text-slate-800 mt-1">158</h3>
+                        <p class="text-green-500 text-[10px] font-bold mt-1"><i class="fa-solid fa-circle-up mr-1"></i> +4 فنيين جدد</p>
+                    </div>
+                    <div class="bg-white border border-slate-100 p-5 rounded-3xl shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase">إيرادات التمويل (مرجان)</p>
+                        <h3 class="text-2xl font-black text-amber-600 mt-1" x-text="calculateAdminRevenue() + ' ريال'"></h3>
+                        <p class="text-amber-500 text-[10px] font-bold mt-1"><i class="fa-solid fa-crown mr-1"></i> من ترقية العروض</p>
+                    </div>
+                    <div class="bg-white border border-slate-100 p-5 rounded-3xl shadow-sm">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase">طلبات مكتملة</p>
+                        <h3 class="text-2xl font-black text-slate-800 mt-1">392</h3>
+                        <p class="text-green-500 text-[10px] font-bold mt-1"><i class="fa-solid fa-check-circle mr-1"></i> بنسبة نجاح 98%</p>
+                    </div>
+                </div>
+
+                <!-- Global Announcement tool -->
+                <div class="bg-white border border-slate-100 p-5 rounded-3xl shadow-sm">
+                    <h3 class="text-sm font-black text-slate-800 mb-2">بث إشعار جماعي فوري لجميع جيران الحي 📣</h3>
+                    <p class="text-slate-400 text-xs mb-4">اكتب رسالة هامة لتظهر في شريط إعلاني متحرك أعلى كافة صفحات المستخدمين فوراً.</p>
+                    <div class="flex gap-2">
+                        <input type="text" x-model="adminAnnouncementText" placeholder="اكتب إعلانك هنا... (مثال: تنبيه: أعمال صيانة لخط المياه الرئيسي بحي الياسمين اليوم)" 
+                               class="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500">
+                        <button @click="publishAnnouncement()" class="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-6 py-2.5 rounded-xl shadow transition-all">بث الإعلان 🚀</button>
+                    </div>
+                </div>
+
+                <!-- Ads & Technician moderation list -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
+                        <h3 class="font-black text-slate-800 text-sm mb-4">إدارة ومراجعة إعلانات العروض 📋</h3>
+                        <div class="space-y-3 max-h-80 overflow-y-auto">
+                            <template x-for="offer in offers" :key="offer.id">
+                                <div class="bg-slate-50 p-3 rounded-2xl flex items-center justify-between text-xs border border-slate-100">
+                                    <div class="min-w-0 flex-1">
+                                        <p class="font-black text-slate-800 truncate" x-text="offer.title"></p>
+                                        <p class="text-[10px] text-slate-400 mt-0.5" x-text="offer.techName + ' • ' + offer.price"></p>
+                                    </div>
+                                    <div class="flex items-center gap-1 shrink-0">
+                                        <button @click="deleteOffer(offer.id)" class="text-red-500 hover:bg-red-50 p-1.5 rounded-lg font-bold">حذف الإعلان</button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Complaints & Reports Management (إدارة البلاغات) -->
+                    <div class="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm">
+                        <h3 class="font-black text-slate-800 text-sm mb-4">صندوق البلاغات والشكاوى 🚨</h3>
+                        <div class="space-y-3 max-h-80 overflow-y-auto">
+                            <template x-for="rep in reports" :key="rep.id">
+                                <div class="bg-red-50/50 p-3.5 rounded-2xl border border-red-100 text-xs flex flex-col gap-2">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-black text-red-600" x-text="rep.reason"></span>
+                                        <span class="text-[9px] text-slate-400" x-text="rep.time"></span>
+                                    </div>
+                                    <p class="text-slate-600 leading-relaxed" x-text="'الشكوى من العميل: ' + rep.reporter + ' ضد: ' + rep.against"></p>
+                                    <div class="flex justify-end gap-2 border-t border-red-100/50 pt-2">
+                                        <button @click="dismissReport(rep.id)" class="bg-slate-100 text-slate-600 font-bold px-3 py-1 rounded-lg">حفظ البلاغ</button>
+                                        <button @click="takeActionAgainstTech(rep)" class="bg-red-500 text-white font-bold px-3 py-1 rounded-lg">تحذير الفني</button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 7: PROFILE & SETTINGS (الملف الشخصي) -->
+            <div x-show="currentTab === 'profile'" class="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm transition-all duration-300">
+                <h2 class="text-xl font-black text-slate-800 mb-6">إعدادات الحساب والملف الشخصي 👤</h2>
+                <div class="flex flex-col md:flex-row gap-6 items-center md:items-start">
+                    <div class="w-24 h-24 rounded-full bg-orange-100 text-orange-600 font-black text-3xl flex items-center justify-center border-4 border-orange-500/10 shrink-0">
+                        <span x-text="currentUser.name.charAt(0)"></span>
+                    </div>
+                    <div class="flex-1 w-full space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-xs font-black text-slate-400 mb-1 block">الاسم الكريم</label>
+                                <input type="text" x-model="currentUser.name" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs text-slate-700">
+                            </div>
+                            <div>
+                                <label class="text-xs font-black text-slate-400 mb-1 block">رقم الجوال (موثق بـ OTP)</label>
+                                <input type="text" value="+966 50 123 4567" disabled class="w-full bg-slate-100 border border-slate-100 rounded-xl p-3 text-xs text-slate-500 cursor-not-allowed">
+                            </div>
+                            <div>
+                                <label class="text-xs font-black text-slate-400 mb-1 block">المدينة</label>
+                                <input type="text" x-model="currentUser.city" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs text-slate-700">
+                            </div>
+                            <div>
+                                <label class="text-xs font-black text-slate-400 mb-1 block">الحي الحالي</label>
+                                <input type="text" x-model="currentUser.neighborhood" class="w-full bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs text-slate-700">
+                            </div>
+                        </div>
+                        <button @click="saveProfile()" class="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-6 py-3 rounded-xl shadow transition-all">حفظ التغييرات 💾</button>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- CREATE PROMOTED AD MODAL (مرجان - إعلان ممول) -->
+    <div x-show="showCreateAdModal" 
+         class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95">
+         
+        <div class="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl relative">
+            
+            <!-- Success Screen Overlay -->
+            <div x-show="paymentSuccess" class="absolute inset-0 bg-white z-50 flex flex-col items-center justify-center p-8 text-center">
+                <div class="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center text-green-500 mb-6 border border-green-200">
+                    <i class="fa-solid fa-circle-check text-5xl animate-bounce"></i>
+                </div>
+                <h3 class="text-2xl font-black text-green-600">تم تفعيل التمويل والترقية بنجاح! 🎉</h3>
+                <p class="text-slate-500 text-sm mt-3 max-w-md leading-relaxed">
+                    إعلانك الآن مميز ويظهر لجميع سكان حي <span class="font-extrabold text-slate-800" x-text="adNeighborhood"></span> بمدينة <span class="font-extrabold text-slate-800" x-text="adCity"></span> بشكل تفاعلي ومثبت بالكامل لمدة 30 يوماً.
+                </p>
+                <button @click="finalizeAdCreation()" class="mt-8 bg-green-600 hover:bg-green-700 text-white font-bold text-sm px-8 py-3 rounded-2xl shadow-lg transition-all">
+                    الذهاب إلى سوق العروض
+                </button>
+            </div>
+
+            <!-- Paying/Processing Screen Overlay -->
+            <div x-show="isPaying" class="absolute inset-0 bg-white/95 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-8 text-center">
+                <svg class="animate-spin h-14 w-14 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <h3 class="text-lg font-black text-slate-800 mt-6">جاري تفعيل إعلانك الممول وتجهيز الحملة... 🔒</h3>
+                <p class="text-slate-400 text-xs mt-2">نحن نتواصل بأمان مع بوابة الدفع ومصرف الراجحي/البنك المركزي لتأكيد العملية والخصم.</p>
+            </div>
+
+            <!-- Header -->
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500">
+                        <i class="fa-solid fa-bullhorn"></i>
+                    </div>
+                    <h3 class="text-lg font-black text-slate-800">إنشاء إعلان ممول مستهدف (بأسلوب مرجان) 🚀</h3>
+                </div>
+                <button @click="showCreateAdModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+
+            <!-- Modal Body (Two columns: inputs on the right, live preview & payment on the left) -->
+            <div class="flex-1 overflow-y-auto p-6 flex flex-col lg:flex-row gap-6">
+                <!-- Inputs Side -->
+                <div class="flex-1 flex flex-col gap-4">
+                    <!-- Basic details -->
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">1. تفاصيل الإعلان والنشاط</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="col-span-1 sm:col-span-2">
+                            <label class="text-[11px] font-bold text-slate-500 mb-1 block">عنوان العرض / الخدمة</label>
+                            <input type="text" x-model="adTitle" placeholder="مثال: تنظيف 3 مكيفات سبليت بسعر خاص مع ضمان شهري" 
+                                   class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:bg-white">
+                        </div>
+                        <div class="col-span-1 sm:col-span-2">
+                            <label class="text-[11px] font-bold text-slate-500 mb-1 block">تفاصيل العرض والمميزات بالتفصيل</label>
+                            <textarea x-model="adDescription" placeholder="اكتب شروط العرض، الضمان، القطع، والتسهيلات الإضافية..." 
+                                      class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 h-20 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:bg-white resize-none"></textarea>
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-500 mb-1 block">السعر المقترح والعملة</label>
+                            <input type="text" x-model="adPrice" placeholder="مثال: 150 ريال" 
+                                   class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:bg-white">
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-500 mb-1 block">المهنة / الفئة</label>
+                            <select x-model="adProfession" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:bg-white">
+                                <option value="تكييف وفلاتر ❄️">تكييف وفلاتر ❄️</option>
+                                <option value="سباكة وصيانة مياه 🚰">سباكة وصيانة مياه 🚰</option>
+                                <option value="كهرباء وتمديدات ⚡">كهرباء وتمديدات ⚡</option>
+                                <option value="أعمال طلاء ودهانات 🎨">أعمال طلاء ودهانات 🎨</option>
+                                <option value="تنظيف شامل 🧹">تنظيف شامل 🧹</option>
+                                <option value="أعمال بناء وحدادة 🧱">أعمال بناء وحدادة 🧱</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Target Demographic -->
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1 mt-2">2. الاستهداف الجغرافي والجمهور</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-500 mb-1 block">المدينة المستهدفة</label>
+                            <select x-model="adCity" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700 focus:outline-none">
+                                <option value="الرياض">الرياض</option>
+                                <option value="جدة">جدة</option>
+                                <option value="الدمام">الدمام</option>
+                                <option value="مكة المكرمة">مكة المكرمة</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-bold text-slate-500 mb-1 block">الحي المستهدف بالترويج</label>
+                            <input type="text" x-model="adNeighborhood" placeholder="حي الياسمين، الصحافة..." 
+                                   class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-700">
+                        </div>
+                    </div>
+
+                    <!-- Mourjan Plans Selection -->
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1 mt-2">3. خطة التمويل والترقية (باقات مرجان)</h4>
+                    <div class="flex flex-col gap-2">
+                        <!-- Free plan option -->
+                        <label class="border rounded-2xl p-3.5 flex items-start gap-3 cursor-pointer transition-all" 
+                               :class="adPlan === 'FREE' ? 'border-slate-300 bg-slate-50' : 'border-slate-100 hover:border-slate-200'">
+                            <input type="radio" x-model="adPlan" value="FREE" class="mt-1 accent-orange-500">
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-black text-slate-700">الإعلان العادي (مجاني)</span>
+                                    <span class="text-xs font-bold text-slate-400">مجانًا</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-1">يُنشر العرض في سوق عروض الصيانة وحراج المستعمل بدون تثبيت أو تمييز لوني.</p>
+                            </div>
+                        </label>
+
+                        <!-- Silver plan option -->
+                        <label class="border rounded-2xl p-3.5 flex items-start gap-3 cursor-pointer transition-all" 
+                               :class="adPlan === 'SILVER' ? 'border-slate-400 bg-slate-50/50' : 'border-slate-100 hover:border-slate-200'">
+                            <input type="radio" x-model="adPlan" value="SILVER" class="mt-1 accent-orange-500">
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-black text-slate-700 flex items-center gap-1">الباقة الفضية - إعلان مميز 🔥</span>
+                                    <span class="text-xs font-black text-slate-600">49 ريال / أسبوع</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-1">إطار فضي مميز، زيادة 3 أضعاف في الزوار، وتنبيه حي في منشورات الحي.</p>
+                            </div>
+                        </label>
+
+                        <!-- Gold plan option -->
+                        <label class="border rounded-2xl p-3.5 flex items-start gap-3 cursor-pointer transition-all" 
+                               :class="adPlan === 'GOLD' ? 'border-amber-400 bg-amber-50/10' : 'border-slate-100 hover:border-slate-200'">
+                            <input type="radio" x-model="adPlan" value="GOLD" class="mt-1 accent-orange-500">
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-black text-amber-600 flex items-center gap-1">الباقة الذهبية - تمويل ومثبت بالكامل 👑</span>
+                                    <span class="text-xs font-black text-amber-600">149 ريال / شهر</span>
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-1">تثبيت دائم في صدارة التطبيق، إطار ذهبي لامع، إرسال إشعار فوري لجميع جيرانك في الحي.</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Preview & Payment Side -->
+                <div class="w-full lg:w-80 shrink-0 flex flex-col gap-4 border-t lg:border-t-0 lg:border-r border-slate-100 pt-6 lg:pt-0 lg:pr-6">
+                    <h4 class="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">4. المعاينة الحية وشحن التمويل</h4>
+                    
+                    <!-- Real-time Live Preview Widget -->
+                    <div :class="getPreviewClass()" class="border-2 rounded-2xl p-4 bg-white relative overflow-hidden shadow-sm flex flex-col justify-between">
+                        <!-- Crown badge -->
+                        <template x-if="adPlan !== 'FREE'">
+                            <div :class="adPlan === 'GOLD' ? 'bg-amber-500 text-slate-900 border-amber-400' : 'bg-slate-400 text-white border-slate-300'" 
+                                 class="absolute left-0 top-0 py-0.5 px-3 text-[8px] font-black rounded-br-xl border-r border-b uppercase flex items-center gap-1">
+                                <i :class="adPlan === 'GOLD' ? 'fa-solid fa-crown' : 'fa-solid fa-bolt'"></i>
+                                <span x-text="adPlan === 'GOLD' ? 'ممول ذهبي 👑' : 'مميز فضي 🔥'"></span>
+                            </div>
+                        </template>
+
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex gap-2 items-center">
+                                    <div class="w-8 h-8 rounded-lg bg-orange-500 text-white flex items-center justify-center font-bold text-xs shadow">
+                                        <span x-text="currentUser.name.charAt(0)"></span>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-[10px] font-black text-slate-800" x-text="currentUser.name"></h4>
+                                        <p class="text-[8px] text-slate-400" x-text="adProfession"></p>
+                                    </div>
+                                </div>
+                                <p class="text-xs font-black text-orange-600" x-text="adPrice || 'السعر ريال'"></p>
+                            </div>
+                            <h3 class="text-xs font-extrabold text-slate-900 line-clamp-1 mb-1" x-text="adTitle || 'عنوان الإعلان يظهر هنا...'"></h3>
+                            <p class="text-[10px] text-slate-500 line-clamp-2 leading-relaxed" x-text="adDescription || 'وصف الحملة وتفاصيل العرض الترويجي...'"></p>
+                        </div>
+                        <div class="border-t border-slate-100 pt-2 flex items-center justify-between mt-3 text-[8px] text-slate-400">
+                            <span><i class="fa-solid fa-location-dot text-orange-400 mr-1"></i> <span x-text="adCity"></span> - <span x-text="adNeighborhood"></span></span>
+                            <span class="bg-slate-900 text-white rounded px-2 py-0.5 font-bold">تواصل 💬</span>
+                        </div>
+                    </div>
+
+                    <!-- Secure Payment Gateway Mock (Only if plan is not FREE) -->
+                    <template x-if="adPlan !== 'FREE'">
+                        <div class="space-y-3 mt-2">
+                            <h5 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">تفاصيل بوابة الدفع الآمنة 🔒</h5>
+                            
+                            <!-- Payment Selection Tabs -->
+                            <div class="grid grid-cols-3 gap-1.5 bg-slate-100 p-1 rounded-xl text-[10px] font-bold">
+                                <button @click="adPaymentMethod = 'MADA'" :class="adPaymentMethod === 'MADA' ? 'bg-white text-blue-800 shadow' : 'text-slate-500'" class="py-1.5 rounded-lg">MADA مدى</button>
+                                <button @click="adPaymentMethod = 'APPLE_PAY'" :class="adPaymentMethod === 'APPLE_PAY' ? 'bg-black text-white shadow' : 'text-slate-500'" class="py-1.5 rounded-lg"> Pay</button>
+                                <button @click="adPaymentMethod = 'VISA'" :class="adPaymentMethod === 'VISA' ? 'bg-white text-blue-600 shadow' : 'text-slate-500'" class="py-1.5 rounded-lg">VISA فيزا</button>
+                            </div>
+
+                            <!-- Mada & Visa fields -->
+                            <div x-show="adPaymentMethod !== 'APPLE_PAY'" class="space-y-2">
+                                <input type="text" x-model="adCardNum" placeholder="رقم بطاقة مدى أو الفيزا المكون من 16 رقماً" 
+                                       class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-[10px] focus:outline-none">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="text" x-model="adCardExpiry" placeholder="الانتهاء MM/YY" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-[10px] focus:outline-none">
+                                    <input type="password" x-model="adCardCvv" placeholder="CVV" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-[10px] focus:outline-none">
+                                </div>
+                            </div>
+
+                            <!-- Apple Pay quick button -->
+                            <div x-show="adPaymentMethod === 'APPLE_PAY'" class="pt-1">
+                                <button @click="processPayment()" class="w-full bg-black hover:bg-slate-950 text-white text-[11px] font-bold py-2.5 rounded-full flex items-center justify-center gap-1.5 transition-all">
+                                    <span>ادفع بـ</span>
+                                    <span class="text-xs font-black"> Pay</span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-slate-50">
+                <div class="text-right">
+                    <p class="text-[10px] text-slate-400 font-bold">قيمة الفاتورة الإجمالية</p>
+                    <p class="text-base font-black text-slate-800" x-text="adPlan === 'GOLD' ? '149 ريال' : adPlan === 'SILVER' ? '49 ريال' : 'مجانًا'"></p>
+                </div>
+                <div class="flex gap-2">
+                    <button @click="showCreateAdModal = false" class="bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold px-5 py-2.5 rounded-xl border border-slate-200">إلغاء</button>
+                    <!-- Trigger pay & create -->
+                    <button @click="processPayment()" 
+                            class="bg-orange-500 hover:bg-orange-600 text-white text-xs font-extrabold px-6 py-2.5 rounded-xl shadow-lg transition-all">
+                        <span x-text="adPlan === 'FREE' ? 'نشر الإعلان العادي مجاناً' : 'تفعيل الدفع ونشر الإعلان 🚀'"></span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- RATING MODAL (تقييم الفني) -->
+    <div x-show="showRatingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm text-center shadow-2xl relative">
+            <h3 class="text-lg font-black text-slate-800 mb-1">تقييم الخدمة المنجزة ⭐</h3>
+            <p class="text-slate-400 text-xs mb-4">قيم أداء الفني لتساعد جيرانك في العثور على أفضل الكفاءات.</p>
+
+            <div class="flex items-center justify-center gap-1.5 my-6 text-2xl">
+                <template x-for="i in 5">
+                    <button @click="ratingStars = i" class="transition-transform active:scale-125 focus:outline-none">
+                        <i class="fa-solid fa-star" :class="ratingStars >= i ? 'text-yellow-400' : 'text-slate-200'"></i>
+                    </button>
+                </template>
+            </div>
+
+            <textarea x-model="ratingComment" placeholder="اكتب رأيك بصراحة وأمانة... (اختياري)" 
+                      class="w-full bg-slate-50 border border-slate-100 rounded-2xl p-3 text-xs text-slate-700 h-20 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-orange-500 mb-4 resize-none"></textarea>
+
+            <div class="flex gap-2">
+                <button @click="showRatingModal = false" class="bg-slate-100 text-slate-600 text-xs font-bold px-4 py-2 rounded-xl flex-1">إلغاء</button>
+                <button @click="submitRating()" class="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-xl flex-1">إرسال التقييم ✅</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TECH DETAIL MODAL (ملف الفني وتفاصيل الأعمال) -->
+    <div x-show="showTechModal" 
+         class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95">
+        <div class="bg-white rounded-3xl w-full max-w-lg overflow-hidden flex flex-col shadow-2xl relative">
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <h3 class="text-sm font-black text-slate-800">الملف المهني للفني التفصيلي</h3>
+                <button @click="showTechModal = false" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-5">
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-white font-extrabold text-2xl shadow" 
+                         :style="'background-color: ' + selectedTech.avatarColor">
+                        <span x-text="selectedTech.name ? selectedTech.name.charAt(0) : ''"></span>
+                    </div>
+                    <div>
+                        <h4 class="text-base font-black text-slate-800" x-text="selectedTech.name"></h4>
+                        <p class="text-xs text-orange-500 font-bold" x-text="selectedTech.profession"></p>
+                        <div class="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
+                            <span class="text-yellow-400"><i class="fa-solid fa-star"></i></span>
+                            <span class="font-bold text-slate-700" x-text="selectedTech.rating"></span>
+                            <span>•</span>
+                            <span x-text="selectedTech.experience + ' خبرة'"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-2xl space-y-1 text-xs">
+                    <p class="font-bold text-slate-400">نبذة تعريفية:</p>
+                    <p class="text-slate-600 leading-relaxed" x-text="selectedTech.bio"></p>
+                </div>
+
+                <!-- Portfolio Gallery Simulator -->
+                <div class="space-y-2">
+                    <p class="text-xs font-black text-slate-400 uppercase tracking-wider">صور ومعرض الأعمال السابقة 🖼️</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="bg-slate-100 rounded-xl aspect-square overflow-hidden flex items-center justify-center text-slate-400 text-xs">صيانة مكيفات</div>
+                        <div class="bg-slate-100 rounded-xl aspect-square overflow-hidden flex items-center justify-center text-slate-400 text-xs">تركيب فلاتر</div>
+                        <div class="bg-slate-100 rounded-xl aspect-square overflow-hidden flex items-center justify-center text-slate-400 text-xs">تأسيس تمديدات</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-medium">التغطية الحالية</p>
+                        <p class="font-bold text-slate-700" x-text="selectedTech.neighborhoods"></p>
+                    </div>
+                    <button @click="bookTechDirectly(selectedTech)" class="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 py-2.5 rounded-xl transition-all shadow-lg shadow-orange-500/10">
+                        حجز موعد عمل فوري 📞
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Navigation Bar (Fitted to simulate Android app launcher) -->
+    <nav class="md:hidden bg-white border-t border-slate-100 fixed bottom-0 left-0 right-0 z-40 py-2.5 px-4 shadow-xl flex items-center justify-around">
+        <button @click="currentTab = 'home'" :class="currentTab === 'home' ? 'text-orange-500' : 'text-slate-400'" class="flex flex-col items-center gap-1">
+            <i class="fa-solid fa-house text-lg"></i>
+            <span class="text-[9px] font-black">الرئيسية</span>
+        </button>
+        <button @click="currentTab = 'offers'" :class="currentTab === 'offers' ? 'text-orange-500' : 'text-slate-400'" class="flex flex-col items-center gap-1 relative">
+            <i class="fa-solid fa-tags text-lg"></i>
+            <span class="text-[9px] font-black">العروض</span>
+            <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-orange-500 rounded-full border border-white"></span>
+        </button>
+        <button @click="showCreateAdModal = true" class="bg-gradient-to-tr from-orange-500 to-amber-500 text-white w-12 h-12 rounded-full flex items-center justify-center shadow-lg shadow-orange-500/30 transform -translate-y-4">
+            <i class="fa-solid fa-plus text-lg"></i>
+        </button>
+        <button @click="currentTab = 'feed'" :class="currentTab === 'feed' ? 'text-orange-500' : 'text-slate-400'" class="flex flex-col items-center gap-1">
+            <i class="fa-solid fa-people-roof text-lg"></i>
+            <span class="text-[9px] font-black">الحي</span>
+        </button>
+        <button @click="currentTab = 'orders'" :class="currentTab === 'orders' ? 'text-orange-500' : 'text-slate-400'" class="flex flex-col items-center gap-1">
+            <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+            <span class="text-[9px] font-black">الطلبات</span>
+        </button>
+    </nav>
+
+    <!-- Footer of Page -->
+    <footer class="bg-white border-t border-slate-100 py-6 text-center text-slate-400 text-xs font-semibold shrink-0 mt-12 mb-16 md:mb-0">
+        <div class="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>© 2026 تطبيق سوق للخدمات المحلية والتمويل التفاعلي. جميع الحقوق محفوظة.</p>
+            <div class="flex gap-4">
+                <a href="#" class="hover:text-slate-600">سياسة الخصوصية</a>
+                <span>•</span>
+                <a href="#" class="hover:text-slate-600">شروط الاستخدام</a>
+                <span>•</span>
+                <a href="#" class="hover:text-slate-600">الدعم الفني</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Alpine State Logic -->
+    <script>
+        function souqApp() {
+            return {
+                currentTab: 'home',
+                userRole: 'client', // 'client', 'tech', 'admin'
+                searchQuery: '',
+                selectedCategory: '',
+                selectedAdFilter: 'ALL',
+
+                // Global Notification Banner
+                globalAnnouncement: 'تنبيه: عروض الباقة الذهبية لتمويل الإعلانات بخصم 20% لجميع المسجلين هذا الأسبوع! 👑',
+
+                // Admin Announcements Text
+                adminAnnouncementText: '',
+
+                // Interactive simulated variables
+                currentUser: {
+                    name: 'عبدالله العتيبي',
+                    neighborhood: 'حي الياسمين',
+                    city: 'الرياض',
+                    role: 'CLIENT'
+                },
+
+                // Categories list with colors and icons
+                categories: [
+                    { name: 'تكييف وتبريد ❄️', icon: 'fa-solid fa-snowflake text-sky-600', bgColor: 'bg-sky-50' },
+                    { name: 'سباكة وصيانة 🚰', icon: 'fa-solid fa-faucet text-blue-600', bgColor: 'bg-blue-50' },
+                    { name: 'كهرباء وإنارة ⚡', icon: 'fa-solid fa-bolt-lightning text-amber-600', bgColor: 'bg-amber-50' },
+                    { name: 'طلاء ودهانات 🎨', icon: 'fa-solid fa-palette text-purple-600', bgColor: 'bg-purple-50' },
+                    { name: 'تنظيف شامل 🧹', icon: 'fa-solid fa-broom text-teal-600', bgColor: 'bg-teal-50' },
+                    { name: 'أعمال حدادة 🧱', icon: 'fa-solid fa-hammer text-slate-600', bgColor: 'bg-slate-50' },
+                ],
+
+                // Prepopulated Initial Promoted/Featured Offers (Mirrors the schema database)
+                offers: [
+                    {
+                        id: 1,
+                        techId: 'tech_1',
+                        techName: 'أبو فهد العتيبي',
+                        techProfession: 'مهندس تكييف وتبريد ❄️',
+                        techAvatarColor: '#ca8a04',
+                        title: 'تنظيف 3 مكيفات سبليت بالمنزل مع فحص الفريون مجاناً',
+                        description: 'تنظيف مكثفات وغسيل احترافي بالكامل باستعمال مواد مضادة للميكروبات لضمان جودة هواء ممتازة وتبريد أقوى مع فحص فريون مكثف لثلاث وحدات.',
+                        price: '149 ريال',
+                        isSponsored: true,
+                        sponsorPlan: 'GOLD',
+                        targetCity: 'الرياض',
+                        targetNeighborhood: 'حي الياسمين'
+                    },
+                    {
+                        id: 2,
+                        techId: 'tech_2',
+                        techName: 'م. أحمد الشهري',
+                        techProfession: 'فني سباكة وصيانة مياه 🚰',
+                        techAvatarColor: '#0ea5e9',
+                        title: 'صيانة كشف تسربات المياه ومعالجة شبكات الصرف',
+                        description: 'كشف تسربات الكتروني دقيق بدون تكسير وبأحدث الأجهزة الألمانية مع معالجة خطوط الضخ وإصلاح الأنابيب المتضررة بضمان سنة كاملة.',
+                        price: '199 ريال',
+                        isSponsored: true,
+                        sponsorPlan: 'SILVER',
+                        targetCity: 'الرياض',
+                        targetNeighborhood: 'حي الصحافة'
+                    },
+                    {
+                        id: 3,
+                        techId: 'tech_3',
+                        techName: 'المهندس ياسر فواز',
+                        techProfession: 'فني كهرباء وإنارة ⚡',
+                        techAvatarColor: '#16a34a',
+                        title: 'تركيب وتأسيس كامل لشبكة الإنارة واللوحات الذكية',
+                        description: 'تجهيز اللوحات الذكية للمنازل والفلل، فحص الخطوط وتأسيس أفياش لزيادة الأمان ومنع الشورت الكهربائي بأفضل المعدات والأسلاك المطابقة للتعليمات.',
+                        price: '250 ريال',
+                        isSponsored: false,
+                        sponsorPlan: 'FREE',
+                        targetCity: 'جدة',
+                        targetNeighborhood: 'حي النعيم'
+                    }
+                ],
+
+                // Nearby Technicians List
+                technicians: [
+                    {
+                        id: 'tech_1',
+                        name: 'أبو فهد العتيبي',
+                        profession: 'تكييف وفلاتر ❄️',
+                        avatarColor: '#ca8a04',
+                        rating: 4.9,
+                        experience: '9 سنوات',
+                        bio: 'متخصص في كشف أعطال الكمبروسر وشحن الفريون وتنظيف المكيفات المركزية والسبليت.',
+                        neighborhoods: 'الياسمين، الصحافة، الملقا'
+                    },
+                    {
+                        id: 'tech_2',
+                        name: 'م. أحمد الشهري',
+                        profession: 'سباكة وصيانة مياه 🚰',
+                        avatarColor: '#0ea5e9',
+                        rating: 4.8,
+                        experience: '6 سنوات',
+                        bio: 'خبير صيانة مضخات مياه، فلاتر تحلية، تأسيس وتغيير خطوط الصرف الصحي وكشف التسربات.',
+                        neighborhoods: 'العقيق، الياسمين، الغدير'
+                    },
+                    {
+                        id: 'tech_3',
+                        name: 'خالد النجار',
+                        profession: 'نجارة وديكور 🪚',
+                        avatarColor: '#ea580c',
+                        rating: 4.7,
+                        experience: '12 سنة',
+                        bio: 'فك وتركيب غرف نوم، تعديل المطابخ وصيانة الأبواب ومقابض الأمان بجودة وإتقان تام.',
+                        neighborhoods: 'الصحافة، النرجس'
+                    }
+                ],
+
+                // Active orders / requests simulation
+                orders: [
+                    {
+                        id: '3024',
+                        serviceType: 'صيانة تكييف سبليت',
+                        description: 'تنظيف مكيفين سبليت مع فحص الفريون والكمبروسر بشكل فوري ومستعجل.',
+                        status: 'NEW',
+                        techName: 'أبو فهد العتيبي',
+                        rated: false
+                    }
+                ],
+
+                // Timelines posts (Neighborhood channel posts)
+                posts: [
+                    {
+                        id: 1,
+                        author: 'فهد الحارثي',
+                        neighborhood: 'حي الياسمين',
+                        avatarColor: '#ec4899',
+                        time: 'منذ ساعتين',
+                        tag: 'سؤال فني',
+                        content: 'يا جماعة هل في حد جرب يتعامل مع الفني أبو فهد في صيانة المكيفات؟ مكيفي يسرب مياه من الداخل ومحتاج فني مضمون بليييز.',
+                        likes: 4,
+                        liked: false,
+                        showComments: true,
+                        newComment: '',
+                        comments: [
+                            { author: 'أبو صالح', text: 'أبو فهد ممتاز جداً وسريع وأسعاره طيبة ومجرب.' },
+                            { author: 'خالد الدوسري', text: 'نعم جربته وغسيلهم للمكيفات نظيف جداً ويحطون معقم ومواد ممتازة.' }
+                        ]
+                    },
+                    {
+                        id: 2,
+                        author: 'سماح ناصر',
+                        neighborhood: 'حي الصحافة',
+                        avatarColor: '#a855f7',
+                        time: 'منذ 5 ساعات',
+                        tag: 'توصية',
+                        content: 'أنصح بشدة بالمهندس أحمد الشهري سباك ممتاز وسريع كشف تسريب مياه المطبخ بدون أي تكسير وبكل أمانة وبسعر معقول.',
+                        likes: 12,
+                        liked: true,
+                        showComments: false,
+                        newComment: '',
+                        comments: []
+                    }
+                ],
+
+                // Chats Mock database
+                chats: [
+                    {
+                        id: 1,
+                        name: 'أبو فهد العتيبي (تكييف)',
+                        avatarColor: '#ca8a04',
+                        time: '11:42 ص',
+                        lastMessage: 'أنا بالطريق إليك الآن يا غالي، جهزت المعدات بالكامل.',
+                        messages: [
+                            { sender: 'me', text: 'السلام عليكم يا أبو فهد، حجزت عرض تنظيف المكيفات ومحتاج أعرف متى بتشرفني؟', time: '11:30 ص' },
+                            { sender: 'other', text: 'وعليكم السلام ورحمة الله، أبشر يا غالي بخلص طلب حالي وبكون عندك في خلال نصف ساعة.', time: '11:35 ص' },
+                            { sender: 'me', text: 'ممتاز الله يسعدك بانتظارك، العنوان موضح بالتطبيق بالياسمين.', time: '11:38 ص' },
+                            { sender: 'other', text: 'أنا بالطريق إليك الآن يا غالي، جهزت المعدات بالكامل.', time: '11:42 ص' }
+                        ]
+                    },
+                    {
+                        id: 2,
+                        name: 'م. أحمد الشهري (سباك)',
+                        avatarColor: '#0ea5e9',
+                        time: 'أمس',
+                        lastMessage: 'تمام، الضمان ساري لمدة سنة كاملة على الأنابيب.',
+                        messages: [
+                            { sender: 'other', text: 'تم إنهاء إصلاح التسريب ومعالجة الجدران المتضررة.', time: 'أمس 4:00 م' },
+                            { sender: 'me', text: 'الله يعطيك العافية شغل نظيف وسريع، هل في ضمان؟', time: 'أمس 4:05 م' },
+                            { sender: 'other', text: 'تمام، الضمان ساري لمدة سنة كاملة على الأنابيب.', time: 'أمس 4:10 م' }
+                        ]
+                    }
+                ],
+
+                activeChat: {},
+
+                // Reports/Complaints lists
+                reports: [
+                    {
+                        id: 1,
+                        reporter: 'سليمان الحربي',
+                        against: 'خالد النجار',
+                        reason: 'تأخر عن الموعد لأكثر من يومين ولم يستجب للرسائل',
+                        time: 'منذ ساعة'
+                    }
+                ],
+
+                // Create Ad state variables
+                showCreateAdModal: false,
+                adTitle: '',
+                adDescription: '',
+                adPrice: '',
+                adProfession: 'تكييف وفلاتر ❄️',
+                adCity: 'الرياض',
+                adNeighborhood: 'حي الياسمين',
+                adPlan: 'GOLD', // 'FREE', 'SILVER', 'GOLD'
+                adPaymentMethod: 'MADA', // 'MADA', 'APPLE_PAY', 'VISA'
+                adCardNum: '',
+                adCardExpiry: '',
+                adCardCvv: '',
+                isPaying: false,
+                paymentSuccess: false,
+
+                // Rating states
+                showRatingModal: false,
+                ratingStars: 5,
+                ratingComment: '',
+                activeRatingOrder: null,
+
+                // Profile techs
+                showTechModal: false,
+                selectedTech: {},
+
+                // Neighborhood feed state
+                newPostContent: '',
+                newPostTag: 'سؤال فني',
+
+                chatInput: '',
+
+                init() {
+                    this.activeChat = this.chats[0];
+                },
+
+                // Get Offer Style based on plan
+                getOfferCardClass(offer) {
+                    if (offer.isSponsored && offer.sponsorPlan === 'GOLD') {
+                        return 'border-amber-400 bg-amber-50/5 hover:border-amber-500 scale-[1.01] ring-2 ring-amber-500/10 shadow-md shadow-amber-500/5';
+                    } else if (offer.isSponsored && offer.sponsorPlan === 'SILVER') {
+                        return 'border-slate-300 bg-slate-50/10 hover:border-slate-400 hover:scale-[1.005]';
+                    }
+                    return 'border-slate-100 hover:border-slate-200';
+                },
+
+                getPreviewClass() {
+                    if (this.adPlan === 'GOLD') {
+                        return 'border-amber-400 bg-amber-50/10 scale-[1.01] ring-2 ring-amber-500/10';
+                    } else if (this.adPlan === 'SILVER') {
+                        return 'border-slate-300 bg-slate-50/10';
+                    }
+                    return 'border-slate-200';
+                },
+
+                getSponsoredCount() {
+                    return this.offers.filter(o => o.isSponsored).length;
+                },
+
+                // Filters offers based on category and search query
+                filteredOffers() {
+                    return this.offers.filter(offer => {
+                        const matchesCategory = !this.selectedCategory || offer.techProfession.includes(this.selectedCategory.slice(0,4));
+                        const matchesSearch = !this.searchQuery || 
+                                              offer.title.toLowerCase().includes(this.searchQuery.toLowerCase()) || 
+                                              offer.description.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                                              offer.techProfession.toLowerCase().includes(this.searchQuery.toLowerCase());
+                        return matchesCategory && matchesSearch;
+                    });
+                },
+
+                filteredAdOffers() {
+                    return this.offers.filter(offer => {
+                        if (this.selectedAdFilter === 'ALL') return true;
+                        if (this.selectedAdFilter === 'GOLD') return offer.isSponsored && offer.sponsorPlan === 'GOLD';
+                        if (this.selectedAdFilter === 'SILVER') return offer.isSponsored && offer.sponsorPlan === 'SILVER';
+                        if (this.selectedAdFilter === 'FREE') return !offer.isSponsored;
+                        return true;
+                    });
+                },
+
+                filterCategory(catName) {
+                    if (this.selectedCategory === catName) {
+                        this.selectedCategory = '';
+                    } else {
+                        this.selectedCategory = catName;
+                    }
+                },
+
+                // Create Ad and Payment Flow
+                processPayment() {
+                    if (!this.adTitle || !this.adDescription || !this.adPrice) {
+                        alert('يرجى كتابة كافة تفاصيل الإعلان أولاً (الاسم والوصف والسعر).');
+                        return;
+                    }
+                    if (this.adPlan !== 'FREE' && this.adPaymentMethod !== 'APPLE_PAY') {
+                        if (this.adCardNum.length < 16 || !this.adCardExpiry || !this.adCardCvv) {
+                            alert('الرجاء إدخال بيانات بطاقة الدفع مشفرة وآمنة لإكمال العملية.');
+                            return;
+                        }
+                    }
+
+                    if (this.adPlan === 'FREE') {
+                        // Directly add
+                        this.finalizeAdCreationDirectly();
+                    } else {
+                        // Start simulation payment progress
+                        this.isPaying = true;
+                        setTimeout(() => {
+                            this.isPaying = false;
+                            this.paymentSuccess = true;
+                        }, 2500);
+                    }
+                },
+
+                finalizeAdCreation() {
+                    const newOffer = {
+                        id: Date.now(),
+                        techId: 'current_user',
+                        techName: this.currentUser.name,
+                        techProfession: this.adProfession,
+                        techAvatarColor: '#f97316',
+                        title: this.adTitle,
+                        description: this.adDescription,
+                        price: this.adPrice,
+                        isSponsored: true,
+                        sponsorPlan: this.adPlan,
+                        targetCity: this.adCity,
+                        targetNeighborhood: this.adNeighborhood
+                    };
+
+                    this.offers.unshift(newOffer);
+                    this.showCreateAdModal = false;
+                    this.paymentSuccess = false;
+                    this.currentTab = 'offers';
+                    
+                    // Reset fields
+                    this.adTitle = '';
+                    this.adDescription = '';
+                    this.adPrice = '';
+                    this.adPlan = 'GOLD';
+                    this.adCardNum = '';
+                    this.adCardExpiry = '';
+                    this.adCardCvv = '';
+                },
+
+                finalizeAdCreationDirectly() {
+                    const newOffer = {
+                        id: Date.now(),
+                        techId: 'current_user',
+                        techName: this.currentUser.name,
+                        techProfession: this.adProfession,
+                        techAvatarColor: '#f97316',
+                        title: this.adTitle,
+                        description: this.adDescription,
+                        price: this.adPrice,
+                        isSponsored: false,
+                        sponsorPlan: 'FREE',
+                        targetCity: this.adCity,
+                        targetNeighborhood: this.adNeighborhood
+                    };
+
+                    this.offers.unshift(newOffer);
+                    this.showCreateAdModal = false;
+                    this.currentTab = 'offers';
+                    
+                    // Reset fields
+                    this.adTitle = '';
+                    this.adDescription = '';
+                    this.adPrice = '';
+                    
+                    alert('تم نشر إعلانك المجاني بنجاح وسوف يظهر للجميع في سوق الإعلانات.');
+                },
+
+                // Book promoted offer directly
+                bookOffer(offer) {
+                    // Create dynamic order
+                    const newOrder = {
+                        id: Math.floor(Math.random() * 10000).toString(),
+                        serviceType: offer.techProfession,
+                        description: '[حجز عرض ممول] ' + offer.title + ' - ' + offer.description,
+                        status: 'NEW',
+                        techName: offer.techName,
+                        rated: false
+                    };
+                    this.orders.unshift(newOrder);
+                    
+                    // Add chat dialogue simulation
+                    const existChat = this.chats.find(c => c.name.includes(offer.techName));
+                    if (!existChat) {
+                        this.chats.unshift({
+                            id: Date.now(),
+                            name: offer.techName + ' (' + offer.techProfession.split(' ')[0] + ')',
+                            avatarColor: offer.techAvatarColor,
+                            time: 'الآن',
+                            lastMessage: 'لقد تم فتح قناة تواصل آمنة لمتابعة حجزك للعرض: ' + offer.title,
+                            messages: [
+                                { sender: 'me', text: 'مرحباً، قمت بحجز عرضك المميز: "' + offer.title + '" عبر تطبيق سوق. هل يمكننا الاتفاق على الموعد؟', time: 'الآن' }
+                            ]
+                        });
+                        this.activeChat = this.chats[0];
+                    }
+                    this.currentTab = 'orders';
+                    alert('لقد قمت بحجز العرض الترويجي: "' + offer.title + '". تم فتح قناة اتصال آمنة وطلب الخدمة بالكامل بنجاح!');
+                },
+
+                // Nearby Tech profile actions
+                openTechProfile(tech) {
+                    this.selectedTech = tech;
+                    this.showTechModal = true;
+                },
+
+                bookTechDirectly(tech) {
+                    const newOrder = {
+                        id: Math.floor(Math.random() * 10000).toString(),
+                        serviceType: 'طلب خدمة ' + tech.profession,
+                        description: 'طلب صيانة منزلية مباشرة مع الفني ' + tech.name + ' للاتفاق والمعاينة.',
+                        status: 'NEW',
+                        techName: tech.name,
+                        rated: false
+                    };
+                    this.orders.unshift(newOrder);
+                    this.showTechModal = false;
+                    this.currentTab = 'orders';
+                    alert('تم إرسال طلب الخدمة للفني ' + tech.name + ' وبانتظار قبوله الآن.');
+                },
+
+                // Order Status Simulation
+                advanceOrderStatus(order) {
+                    if (order.status === 'NEW') order.status = 'APPROVED';
+                    else if (order.status === 'APPROVED') order.status = 'IN_TRANSIT';
+                    else if (order.status === 'IN_TRANSIT') order.status = 'IN_PROGRESS';
+                    else if (order.status === 'IN_PROGRESS') order.status = 'COMPLETED';
+                },
+
+                getStatusText(status) {
+                    switch(status) {
+                        case 'NEW': return 'جديد';
+                        case 'APPROVED': return 'تم القبول';
+                        case 'IN_TRANSIT': return 'الفني في الطريق';
+                        case 'IN_PROGRESS': return 'بدأ العمل';
+                        case 'COMPLETED': return 'مكتمل';
+                        default: return 'بانتظار التأكيد';
+                    }
+                },
+
+                getStatusBadgeClass(status) {
+                    switch(status) {
+                        case 'NEW': return 'bg-orange-50 text-orange-600 border-orange-200';
+                        case 'APPROVED': return 'bg-sky-50 text-sky-600 border-sky-200';
+                        case 'IN_TRANSIT': return 'bg-indigo-50 text-indigo-600 border-indigo-200';
+                        case 'IN_PROGRESS': return 'bg-blue-50 text-blue-600 border-blue-200';
+                        case 'COMPLETED': return 'bg-green-50 text-green-600 border-green-200';
+                        default: return 'bg-slate-50 text-slate-600 border-slate-200';
+                    }
+                },
+
+                getStatusPercentage(status) {
+                    switch(status) {
+                        case 'NEW': return 10;
+                        case 'APPROVED': return 35;
+                        case 'IN_TRANSIT': return 60;
+                        case 'IN_PROGRESS': return 80;
+                        case 'COMPLETED': return 100;
+                        default: return 0;
+                    }
+                },
+
+                // Rating simulation
+                openRatingModal(order) {
+                    this.activeRatingOrder = order;
+                    this.showRatingModal = true;
+                },
+
+                submitRating() {
+                    this.activeRatingOrder.rated = true;
+                    this.showRatingModal = false;
+                    alert('شكرًا لتقييمك الصادق! تم تسجيل التقييم بـ ' + this.ratingStars + ' نجوم وتحديث سجل الفني بنجاح.');
+                    this.ratingComment = '';
+                    this.ratingStars = 5;
+                },
+
+                // Role Switching simulation for user experience testing
+                switchRole(role) {
+                    this.userRole = role;
+                    if (role === 'admin') {
+                        this.currentUser.name = 'المدير العام (مشرف)';
+                        this.currentUser.neighborhood = 'مبنى الإدارة';
+                        this.currentTab = 'admin';
+                    } else if (role === 'tech') {
+                        this.currentUser.name = 'أبو فهد العتيبي';
+                        this.currentUser.neighborhood = 'حي الصحافة';
+                        this.currentTab = 'home';
+                    } else {
+                        this.currentUser.name = 'عبدالله العتيبي';
+                        this.currentUser.neighborhood = 'حي الياسمين';
+                        this.currentTab = 'home';
+                    }
+                },
+
+                // Neighborhood feed actions
+                createPost() {
+                    if (!this.newPostContent) {
+                        alert('يرجى كتابة محتوى المنشور أولاً.');
+                        return;
+                    }
+                    const newPost = {
+                        id: Date.now(),
+                        author: this.currentUser.name,
+                        neighborhood: this.currentUser.neighborhood,
+                        avatarColor: '#f97316',
+                        time: 'منذ ثوانٍ',
+                        tag: this.newPostTag,
+                        content: this.newPostContent,
+                        likes: 0,
+                        liked: false,
+                        showComments: false,
+                        newComment: '',
+                        comments: []
+                    };
+                    this.posts.unshift(newPost);
+                    this.newPostContent = '';
+                    alert('تم نشر منشورك بنجاح في حكايات ومنشورات الحي! 📣');
+                },
+
+                likePost(post) {
+                    post.liked = !post.liked;
+                    if (post.liked) post.likes++;
+                    else post.likes--;
+                },
+
+                showComments(post) {
+                    post.showComments = !post.showComments;
+                },
+
+                addComment(post) {
+                    if (!post.newComment) return;
+                    post.comments.push({
+                        author: this.currentUser.name,
+                        text: post.newComment
+                    });
+                    post.newComment = '';
+                },
+
+                // Chat actions
+                sendChatMessage() {
+                    if (!this.chatInput) return;
+                    this.activeChat.messages.push({
+                        sender: 'me',
+                        text: this.chatInput,
+                        time: 'الآن'
+                    });
+                    this.activeChat.lastMessage = this.chatInput;
+                    const sentMsg = this.chatInput;
+                    this.chatInput = '';
+
+                    // Simulate realistic response
+                    setTimeout(() => {
+                        this.activeChat.messages.push({
+                            sender: 'other',
+                            text: 'أبشر يا غالي، رسالتك وصلت وجاري الترتيب للخدمة بالتفصيل.',
+                            time: 'الآن'
+                        });
+                        this.activeChat.lastMessage = 'أبشر يا غالي، رسالتك وصلت وجاري الترتيب للخدمة بالتفصيل.';
+                    }, 1500);
+                },
+
+                // Admin actions
+                calculateAdminRevenue() {
+                    let rev = 0;
+                    this.offers.forEach(o => {
+                        if (o.isSponsored) {
+                            rev += o.sponsorPlan === 'GOLD' ? 149 : 49;
+                        }
+                    });
+                    return rev;
+                },
+
+                publishAnnouncement() {
+                    if (!this.adminAnnouncementText) return;
+                    this.globalAnnouncement = this.adminAnnouncementText;
+                    this.adminAnnouncementText = '';
+                    alert('تم بث الإعلان الإداري لجميع جيران حيك بنجاح!');
+                },
+
+                deleteOffer(id) {
+                    this.offers = this.offers.filter(o => o.id !== id);
+                    alert('تم شطب وحذف الإعلان ومحتواه بالكامل من قبل مدير النظام.');
+                },
+
+                dismissReport(id) {
+                    this.reports = this.reports.filter(r => r.id !== id);
+                    alert('تم حفظ وحفظ ملف الشكوى كبلاغ مكتمل الأركان ومغلق.');
+                },
+
+                takeActionAgainstTech(rep) {
+                    alert('تم توجيه تحذير فوري للفني ' + rep.against + ' وتقييد حسابه مؤقتاً.');
+                    this.reports = this.reports.filter(r => r.id !== rep.id);
+                },
+
+                saveProfile() {
+                    alert('تم حفظ وتعديل بيانات ملفك الشخصي بالكامل بنجاح!');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
