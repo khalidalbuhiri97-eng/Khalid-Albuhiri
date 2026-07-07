@@ -32,9 +32,13 @@ class SouqViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         // Auto-login if there is an active Firebase session on app start
-        val fbUser = authRepository.getCurrentUser()
-        if (fbUser != null) {
-            loginById(fbUser.uid)
+        try {
+            val fbUser = authRepository.getCurrentUser()
+            if (fbUser != null) {
+                loginById(fbUser.uid)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

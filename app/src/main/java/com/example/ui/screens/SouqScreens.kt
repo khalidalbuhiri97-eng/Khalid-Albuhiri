@@ -170,6 +170,7 @@ fun LoginAndRegisterScreen(viewModel: SouqViewModel) {
     var bio by remember { mutableStateOf("") }
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // Launcher for Google Sign-In
     val googleSignInLauncher = rememberLauncherForActivityResult(
@@ -511,6 +512,128 @@ fun LoginAndRegisterScreen(viewModel: SouqViewModel) {
                                         )
                                         Spacer(modifier = Modifier.width(10.dp))
                                         Text("تسجيل الدخول بواسطة Google", color = Color.DarkGray, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+
+                                    Spacer(modifier = Modifier.height(18.dp))
+
+                                    // Premium Quick Access Divider
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    ) {
+                                        HorizontalDivider(modifier = Modifier.weight(1f), color = Color.LightGray.copy(alpha = 0.5f))
+                                        Text("بوابة الدخول السريع للتجربة والتقييم ⚡", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp))
+                                        HorizontalDivider(modifier = Modifier.weight(1f), color = Color.LightGray.copy(alpha = 0.5f))
+                                    }
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Quick Entry buttons for multiple roles to preview everything
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Button(
+                                            onClick = {
+                                                val demoCustomer = UserEntity(
+                                                    uid = "demo_customer_user_id",
+                                                    name = "أبو فهد (جار عميل)",
+                                                    phoneNumber = "0511111111",
+                                                    role = "CUSTOMER",
+                                                    city = "الرياض",
+                                                    neighborhood = "حي الياسمين",
+                                                    lat = 24.788,
+                                                    lng = 46.688,
+                                                    avatarColor = 2,
+                                                    bio = "جار مهتم بطلب خدمات السباكة والكهرباء وصيانة المنزل والحي.",
+                                                    profession = "",
+                                                    experienceYears = 0,
+                                                    isOnline = true,
+                                                    rating = 5.0,
+                                                    completedOrders = 0
+                                                )
+                                                scope.launch {
+                                                    viewModel.repository.insertUser(demoCustomer)
+                                                    viewModel.loginAsUser(demoCustomer)
+                                                    Toast.makeText(context, "تم الدخول كعميل تجريبي بنجاح! 🏡", Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.fillMaxWidth().height(44.dp)
+                                        ) {
+                                            Icon(Icons.Default.Person, contentDescription = null, tint = Color.White)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("دخول سريع: كعميل (جار في الحي)", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                val demoTech = UserEntity(
+                                                    uid = "demo_technician_user_id",
+                                                    name = "م. أبو سامي (فني كهرباء صيانة)",
+                                                    phoneNumber = "0522222222",
+                                                    role = "TECHNICIAN",
+                                                    city = "الرياض",
+                                                    neighborhood = "حي الياسمين",
+                                                    lat = 24.789,
+                                                    lng = 46.689,
+                                                    avatarColor = 4,
+                                                    bio = "فني كهرباء صيانة خبير في حلول التماسات وتأمين لوحات التوزيع وتأسيس الشبكات المنزلية.",
+                                                    profession = "كهرباء",
+                                                    experienceYears = 10,
+                                                    isOnline = true,
+                                                    rating = 4.9,
+                                                    completedOrders = 14
+                                                )
+                                                scope.launch {
+                                                    viewModel.repository.insertUser(demoTech)
+                                                    viewModel.loginAsUser(demoTech)
+                                                    Toast.makeText(context, "تم الدخول كفني تجريبي بنجاح! ⚡", Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.fillMaxWidth().height(44.dp)
+                                        ) {
+                                            Icon(Icons.Default.Build, contentDescription = null, tint = Color.White)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("دخول سريع: كمقدم خدمة (فني كهرباء)", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
+
+                                        Button(
+                                            onClick = {
+                                                val demoAdmin = UserEntity(
+                                                    uid = "demo_admin_user_id",
+                                                    name = "المهندس خالد (مدير المنصة)",
+                                                    phoneNumber = "0599999999",
+                                                    role = "ADMIN",
+                                                    city = "الرياض",
+                                                    neighborhood = "حي الياسمين",
+                                                    lat = 24.790,
+                                                    lng = 46.690,
+                                                    avatarColor = 0,
+                                                    bio = "المشرف العام ومنسق البلاغات والطلبات والمستخدمين في تطبيق سوق.",
+                                                    profession = "",
+                                                    experienceYears = 0,
+                                                    isOnline = true,
+                                                    rating = 5.0,
+                                                    completedOrders = 0
+                                                )
+                                                scope.launch {
+                                                    viewModel.repository.insertUser(demoAdmin)
+                                                    viewModel.loginAsUser(demoAdmin)
+                                                    Toast.makeText(context, "تم الدخول كمدير المنصة بنجاح! 👑", Toast.LENGTH_SHORT).show()
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF37474F)),
+                                            shape = RoundedCornerShape(10.dp),
+                                            modifier = Modifier.fillMaxWidth().height(44.dp)
+                                        ) {
+                                            Icon(Icons.Default.Settings, contentDescription = null, tint = Color.White)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text("دخول سريع: كمدير المنصة (Admin Panel)", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
                                     }
 
                                 }

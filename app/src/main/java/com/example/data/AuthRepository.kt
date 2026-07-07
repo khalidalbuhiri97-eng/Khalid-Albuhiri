@@ -6,15 +6,29 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 
 class AuthRepository {
-    private val firebaseAuth: FirebaseAuth
-        get() = FirebaseAuth.getInstance()
+    private val firebaseAuth: FirebaseAuth?
+        get() = try { 
+            FirebaseAuth.getInstance() 
+        } catch (e: Exception) { 
+            e.printStackTrace() 
+            null 
+        }
 
     fun getCurrentUser(): FirebaseUser? {
-        return firebaseAuth.currentUser
+        return try {
+            firebaseAuth?.currentUser
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 
     fun signOut() {
-        firebaseAuth.signOut()
+        try {
+            firebaseAuth?.signOut()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun signInWithEmailAndPassword(
@@ -22,14 +36,23 @@ class AuthRepository {
         password: String,
         onComplete: (AuthResult?, Exception?) -> Unit
     ) {
-        firebaseAuth.signInWithEmailAndPassword(email, password)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    onComplete(task.result, null)
-                } else {
-                    onComplete(null, task.exception)
+        val auth = firebaseAuth
+        if (auth == null) {
+            onComplete(null, Exception("Firebase authentication is not initialized or unavailable in this environment."))
+            return
+        }
+        try {
+            auth.signInWithEmailAndPassword(email, password)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        onComplete(task.result, null)
+                    } else {
+                        onComplete(null, task.exception)
+                    }
                 }
-            }
+        } catch (e: Exception) {
+            onComplete(null, e)
+        }
     }
 
     fun createUserWithEmailAndPassword(
@@ -37,28 +60,46 @@ class AuthRepository {
         password: String,
         onComplete: (AuthResult?, Exception?) -> Unit
     ) {
-        firebaseAuth.createUserWithEmailAndPassword(email, password)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    onComplete(task.result, null)
-                } else {
-                    onComplete(null, task.exception)
+        val auth = firebaseAuth
+        if (auth == null) {
+            onComplete(null, Exception("Firebase authentication is not initialized or unavailable in this environment."))
+            return
+        }
+        try {
+            auth.createUserWithEmailAndPassword(email, password)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        onComplete(task.result, null)
+                    } else {
+                        onComplete(null, task.exception)
+                    }
                 }
-            }
+        } catch (e: Exception) {
+            onComplete(null, e)
+        }
     }
 
     fun signInWithGoogleToken(
         idToken: String,
         onComplete: (AuthResult?, Exception?) -> Unit
     ) {
-        val credential = GoogleAuthProvider.getCredential(idToken, null)
-        firebaseAuth.signInWithCredential(credential)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    onComplete(task.result, null)
-                } else {
-                    onComplete(null, task.exception)
+        val auth = firebaseAuth
+        if (auth == null) {
+            onComplete(null, Exception("Firebase authentication is not initialized or unavailable in this environment."))
+            return
+        }
+        try {
+            val credential = GoogleAuthProvider.getCredential(idToken, null)
+            auth.signInWithCredential(credential)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        onComplete(task.result, null)
+                    } else {
+                        onComplete(null, task.exception)
+                    }
                 }
-            }
+        } catch (e: Exception) {
+            onComplete(null, e)
+        }
     }
 }
