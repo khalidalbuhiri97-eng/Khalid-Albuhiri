@@ -817,6 +817,10 @@ fun MainContainerScreen(viewModel: SouqViewModel) {
     var showCreateAdDialog by remember { mutableStateOf(false) }
     var showCreateChannelDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var showAiAssistantDialog by remember { mutableStateOf(false) }
+    var showProfileCustomizationDialog by remember { mutableStateOf(false) }
+    var showNotificationsDialog by remember { mutableStateOf(false) }
+    var showSponsoredAdsPortalDialog by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
     val unreadNotifications = notifications.filter { !it.isRead }.size
@@ -956,6 +960,73 @@ fun MainContainerScreen(viewModel: SouqViewModel) {
                             onClick = {
                                 scope.launch { drawerState.close() }
                                 showSettingsDialog = true
+                            }
+                        )
+
+                        // 4. Gemini AI Assistant
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.Lightbulb, null, tint = Color(0xFF9C27B0)) },
+                            label = { Text("مساعد سوق الذكي 🧠", fontWeight = FontWeight.Bold) },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                showAiAssistantDialog = true
+                            }
+                        )
+
+                        // 5. Profile Edit
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.Edit, null, tint = Color(0xFF009688)) },
+                            label = { Text("تعديل الملف الشخصي 👤", fontWeight = FontWeight.Bold) },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                showProfileCustomizationDialog = true
+                            }
+                        )
+
+                        // 6. Sponsored Ads Portal
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.Star, null, tint = Color(0xFFFF9800)) },
+                            label = { Text("بوابة الإعلانات الممولة 👑", fontWeight = FontWeight.Bold) },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                showSponsoredAdsPortalDialog = true
+                            }
+                        )
+
+                        // 7. Notifications
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.Notifications, null, tint = Color(0xFFE91E63)) },
+                            label = { Text("صندوق الإشعارات 🔔", fontWeight = FontWeight.Bold) },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                showNotificationsDialog = true
+                            },
+                            badge = {
+                                if (unreadNotifications > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(Color.Red, CircleShape)
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(unreadNotifications.toString(), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        )
+
+                        // 8. Jobs List direct link
+                        NavigationDrawerItem(
+                            icon = { Icon(Icons.Default.Work, null, tint = Color(0xFF3F51B5)) },
+                            label = { Text("قائمة الوظائف والطلبات 💼", fontWeight = FontWeight.Bold) },
+                            selected = false,
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                                selectedTab = 2 // Neighborhood Tab
+                                viewModel.setNeighborhoodSubTab(1) // Jobs SubTab
                             }
                         )
 
@@ -1232,6 +1303,34 @@ fun MainContainerScreen(viewModel: SouqViewModel) {
                     SettingsDialog(
                         viewModel = viewModel,
                         onDismiss = { showSettingsDialog = false }
+                    )
+                }
+
+                if (showAiAssistantDialog) {
+                    AiAssistantDialog(
+                        viewModel = viewModel,
+                        onDismiss = { showAiAssistantDialog = false }
+                    )
+                }
+
+                if (showProfileCustomizationDialog) {
+                    ProfileCustomizationDialog(
+                        viewModel = viewModel,
+                        onDismiss = { showProfileCustomizationDialog = false }
+                    )
+                }
+
+                if (showNotificationsDialog) {
+                    NotificationsDialog(
+                        viewModel = viewModel,
+                        onDismiss = { showNotificationsDialog = false }
+                    )
+                }
+
+                if (showSponsoredAdsPortalDialog) {
+                    SponsoredAdsPortalDialog(
+                        viewModel = viewModel,
+                        onDismiss = { showSponsoredAdsPortalDialog = false }
                     )
                 }
             }
@@ -6157,6 +6256,746 @@ fun SettingsDialog(
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text("حفظ وإغلاق", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// 1. --- Gemini AI Assistant Dialog ---
+// ==========================================
+@Composable
+fun AiAssistantDialog(
+    viewModel: SouqViewModel,
+    onDismiss: () -> Unit
+) {
+    val aiMessages by viewModel.aiChatHistory.collectAsState()
+    val isAiLoading by viewModel.isAiLoading.collectAsState()
+    var promptInput by remember { mutableStateOf("") }
+    val lazyListState = androidx.compose.foundation.lazy.rememberLazyListState()
+
+    // Scroll to bottom when new messages arrive
+    LaunchedEffect(aiMessages.size) {
+        if (aiMessages.isNotEmpty()) {
+            lazyListState.animateScrollToItem(aiMessages.size - 1)
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+                .padding(4.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header Banner
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color(0xFF8E24AA),
+                                    Color(0xFF673AB7)
+                                )
+                            )
+                        )
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Lightbulb, null, tint = Color.White, modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text("مساعد سوق الذكي", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                Text("مدعوم بنموذج الذكاء الاصطناعي الجار", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
+                            }
+                        }
+                        Row {
+                            IconButton(onClick = { viewModel.clearAiChat() }) {
+                                Icon(Icons.Default.Delete, "مسح المحادثة", tint = Color.White)
+                            }
+                            IconButton(onClick = onDismiss) {
+                                Icon(Icons.Default.Close, "إغلاق", tint = Color.White)
+                            }
+                        }
+                    }
+                }
+
+                // Chat Messages LazyColumn
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    LazyColumn(
+                        state = lazyListState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(aiMessages, key = { msg -> msg.id }) { msg ->
+                            val isUser = msg.sender == "USER"
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
+                            ) {
+                                Card(
+                                    shape = RoundedCornerShape(
+                                        topStart = 12.dp,
+                                        topEnd = 12.dp,
+                                        bottomStart = if (isUser) 12.dp else 2.dp,
+                                        bottomEnd = if (isUser) 2.dp else 12.dp
+                                    ),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (isUser) MaterialTheme.colorScheme.primaryContainer else Color(0xFFF1F5F9)
+                                    ),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                    modifier = Modifier.widthIn(max = 280.dp)
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(
+                                            text = if (isUser) "أنت" else "مساعد سوق الذكي",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (isUser) MaterialTheme.colorScheme.primary else Color(0xFF8E24AA)
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = msg.text,
+                                            fontSize = 13.sp,
+                                            color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else Color.Black,
+                                            lineHeight = 18.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (isAiLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.White.copy(alpha = 0.6f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = Color(0xFF8E24AA))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("جاري تحليل طلبك بالذكاء الاصطناعي...", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                            }
+                        }
+                    }
+                }
+
+                Divider()
+
+                // Input Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = promptInput,
+                        onValueChange = { promptInput = it },
+                        placeholder = { Text("مثلاً: أحتاج كهربائي لحل مشكلة التماس...") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(24.dp),
+                        maxLines = 3,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        trailingIcon = {
+                            if (promptInput.isNotEmpty()) {
+                                IconButton(onClick = { promptInput = "" }) {
+                                    Icon(Icons.Default.Close, null, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    IconButton(
+                        onClick = {
+                            if (promptInput.trim().isNotEmpty()) {
+                                viewModel.sendAiMessage(promptInput)
+                                promptInput = ""
+                            }
+                        },
+                        enabled = promptInput.trim().isNotEmpty() && !isAiLoading,
+                        modifier = Modifier
+                            .background(
+                                color = if (promptInput.trim().isNotEmpty()) Color(0xFF8E24AA) else Color.LightGray,
+                                shape = CircleShape
+                            )
+                            .size(44.dp)
+                    ) {
+                        Icon(Icons.Default.Send, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// 2. --- Profile Customization Dialog ---
+// ==========================================
+@Composable
+fun ProfileCustomizationDialog(
+    viewModel: SouqViewModel,
+    onDismiss: () -> Unit
+) {
+    val currentUser by viewModel.currentUser.collectAsState()
+    val context = LocalContext.current
+
+    var name by remember { mutableStateOf(currentUser?.name ?: "") }
+    var phone by remember { mutableStateOf(currentUser?.phoneNumber ?: "") }
+    var city by remember { mutableStateOf(currentUser?.city ?: "") }
+    var neighborhood by remember { mutableStateOf(currentUser?.neighborhood ?: "") }
+    var bio by remember { mutableStateOf(currentUser?.bio ?: "") }
+    var isOnline by remember { mutableStateOf(currentUser?.isOnline ?: true) }
+    
+    // Technician specific fields
+    var profession by remember { mutableStateOf(currentUser?.profession ?: "سباكة") }
+    var experienceYears by remember { mutableStateOf(currentUser?.experienceYears?.toString() ?: "1") }
+
+    var selectedAvatarColor by remember { mutableStateOf(currentUser?.avatarColor ?: 0) }
+    var professionExpanded by remember { mutableStateOf(false) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+                .padding(4.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                // Header Banner
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primary)
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Person, null, tint = Color.White)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("تعديل تفاصيل الملف الشخصي", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, null, tint = Color.White)
+                        }
+                    }
+                }
+
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // Profile Avatar Color Picker
+                    Text("اختر لون الرمز الشخصي المفضل لديك:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        for (i in 0..7) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(getAvatarColor(i))
+                                    .border(
+                                        width = if (selectedAvatarColor == i) 3.dp else 0.dp,
+                                        color = if (selectedAvatarColor == i) Color.Black else Color.Transparent,
+                                        shape = CircleShape
+                                    )
+                                    .clickable { selectedAvatarColor = i }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Fields
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("الاسم الكامل") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        leadingIcon = { Icon(Icons.Default.Person, null) }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = phone,
+                        onValueChange = { phone = it },
+                        label = { Text("رقم الهاتف") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        leadingIcon = { Icon(Icons.Default.Phone, null) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = city,
+                            onValueChange = { city = it },
+                            label = { Text("المدينة") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        OutlinedTextField(
+                            value = neighborhood,
+                            onValueChange = { neighborhood = it },
+                            label = { Text("الحي") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = bio,
+                        onValueChange = { bio = it },
+                        label = { Text("نبذة تعريفية قصيرة (عني)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+
+                    // Technician Specific Fields
+                    if (currentUser?.role == "TECHNICIAN") {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("بيانات فني الصيانة:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Divider(modifier = Modifier.padding(vertical = 4.dp))
+
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = profession,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("المهنة أو التخصص الفني") },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                trailingIcon = {
+                                    IconButton(onClick = { professionExpanded = true }) {
+                                        Icon(Icons.Default.ArrowDropDown, null)
+                                    }
+                                }
+                            )
+                            DropdownMenu(
+                                expanded = professionExpanded,
+                                onDismissRequest = { professionExpanded = false },
+                                modifier = Modifier.fillMaxWidth(0.7f)
+                            ) {
+                                professionsList.forEach { p ->
+                                    DropdownMenuItem(
+                                        text = { Text(p) },
+                                        onClick = {
+                                            profession = p
+                                            professionExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedTextField(
+                            value = experienceYears,
+                            onValueChange = { experienceYears = it },
+                            label = { Text("عدد سنوات الخبرة العملي") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Status switch
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (isOnline) "🟢 حالتي الحالية: متاح للعمل واستقبال الطلبات" else "🔴 حالتي الحالية: مشغول / غير متاح الآن",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Switch(
+                                checked = isOnline,
+                                onCheckedChange = { isOnline = it }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = {
+                            if (name.isEmpty() || phone.isEmpty()) {
+                                Toast.makeText(context, "يرجى تعبئة الاسم ورقم الهاتف", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val expNum = experienceYears.toIntOrNull() ?: 1
+                            viewModel.updateUserProfile(
+                                name = name,
+                                phone = phone,
+                                city = city,
+                                neighborhood = neighborhood,
+                                bio = bio,
+                                profession = profession,
+                                experienceYears = expNum,
+                                isOnline = isOnline,
+                                avatarColor = selectedAvatarColor
+                            )
+                            Toast.makeText(context, "تم حفظ بيانات الملف الشخصي بنجاح!", Toast.LENGTH_SHORT).show()
+                            onDismiss()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("حفظ التغييرات وتحديث الملف", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// 3. --- System Notifications Dialog ---
+// ==========================================
+@Composable
+fun NotificationsDialog(
+    viewModel: SouqViewModel,
+    onDismiss: () -> Unit
+) {
+    val notificationList by viewModel.notifications.collectAsState()
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.75f)
+                .padding(4.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primaryContainer)
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.NotificationsActive, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("صندوق الإشعارات المباشرة", color = MaterialTheme.colorScheme.onPrimaryContainer, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                    }
+                }
+
+                // Notifications List
+                if (notificationList.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = Color.LightGray
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("لا توجد إشعارات جديدة حالياً", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                            Text("ستتلقى إشعارات فورية عند تفاعل الآخرين مع طلباتك.", fontSize = 11.sp, color = Color.Gray)
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(notificationList) { notify ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (notify.isRead) Color.White else Color(0xFFF0F7FF)
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(12.dp),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .background(
+                                                color = if (notify.isRead) Color.LightGray else MaterialTheme.colorScheme.primary,
+                                                shape = CircleShape
+                                            )
+                                            .align(Alignment.CenterVertically)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = notify.title,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = notify.content,
+                                            fontSize = 11.sp,
+                                            color = Color.DarkGray
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Footer Action
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    TextButton(onClick = {
+                        viewModel.markNotificationsRead()
+                    }) {
+                        Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("تحديد الكل كمقروء", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// 4. --- Sponsored Ads Portal Dialog ---
+// ==========================================
+@Composable
+fun SponsoredAdsPortalDialog(
+    viewModel: SouqViewModel,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+
+    // Sample dynamic structured sponsored ads that are highly aesthetic
+    val premiumAds = listOf(
+        Triple("مؤسسة عائض الحربي المعتمدة لصيانة السباكة 💧", "خصم خاص 25% على أعمال صيانة شبكات المياه المنزلية والتهريب في حي الياسمين وجوارها. فنيون مدربون على أعلى مستوى.", "199 ريال"),
+        Triple("شركة التكييف الماسي لغسيل وصيانة المكيفات ❄️", "احصل على صيانة شاملة للمكيف السبليت شامل تعبئة غاز الفريون وتنظيف الفلاتر مع تعقيم مخصص آمن.", "149 ريال"),
+        Triple("م. ياسر القحطاني لحلول الكهرباء الذكية ⚡", "تركيب شواحن سيارات تسلا والسيارات الكهربائية، مع تأسيس لوحات التوزيع وتأمين التماسات الكهرباء بحي الملقا والياسمين.", "خصومات الحي")
+    )
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+                .padding(4.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header Banner
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                colors = listOf(
+                                    Color(0xFFFF8F00),
+                                    Color(0xFFFF6F00)
+                                )
+                            )
+                        )
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Star, null, tint = Color.White)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("بوابة إعلانات الحي الممولة", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, null, tint = Color.White)
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(12.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = "💎 الإعلانات والفرص المميزة النشطة الآن بحيّك:",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.DarkGray
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    premiumAds.forEach { ad ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFDF5)),
+                            border = BorderStroke(1.5.dp, Color(0xFFFFD54F)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(Color(0xFFFFECB3), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    ) {
+                                        Text("إعلان مميز", color = Color(0xFFFF8F00), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                    Text(
+                                        text = ad.third,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFE65100)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = ad.first,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = ad.second,
+                                    fontSize = 11.sp,
+                                    color = Color.Gray,
+                                    lineHeight = 15.sp
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            Toast.makeText(context, "جاري فتح المحادثة الفورية مع المعلن...", Toast.LENGTH_SHORT).show()
+                                        },
+                                        shape = RoundedCornerShape(6.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        Text("تواصل فوري", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Promotion Card to buy space
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "هل ترغب في مضاعفة مبيعاتك ونشر خدماتك الفنية؟ 📢",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "انشر إعلانك الممول الآن في القائمة الجانبية للتطبيق ليراه آلاف العملاء القريبين منك في الحي مباشرة بدون عمولات فنية!",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(
+                                onClick = {
+                                    Toast.makeText(context, "جاري تحويلك لنموذج النشر المميز...", Toast.LENGTH_SHORT).show()
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("روّج لعملك الآن", fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }

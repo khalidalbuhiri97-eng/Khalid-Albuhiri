@@ -131,3 +131,11 @@ data class ChannelMessageEntity(
     val senderAvatarUri: String? = null
 )
 
+data class AiMessage(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val sender: String, // "USER" or "AI"
+    val text: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+

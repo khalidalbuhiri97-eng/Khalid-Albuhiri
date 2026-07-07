@@ -750,6 +750,55 @@ class SouqViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // --- Gemini AI Assistant States and Actions ---
+    private val _aiChatHistory = MutableStateFlow<List<AiMessage>>(
+        listOf(
+            AiMessage(
+                sender = "AI",
+                text = "أهلاً بك يا جاري العزيز في 'سوق' المساعد الذكي للحي! 🧠🏡\n\nأنا هنا لمساعدتك في العثور على أفضل فنيي الصيانة (سباكة، كهرباء، تكييف، دهان...)، أو شرح مشكلتك الفنية والحصول على نصيحة تشخيصية فورية.\n\nكيف يمكنني مساعدتك اليوم؟"
+            )
+        )
+    )
+    val aiChatHistory: StateFlow<List<AiMessage>> = _aiChatHistory.asStateFlow()
+
+    private val _isAiLoading = MutableStateFlow(false)
+    val isAiLoading: StateFlow<Boolean> = _isAiLoading.asStateFlow()
+
+    fun sendAiMessage(promptText: String) {
+        if (promptText.trim().isEmpty()) return
+        viewModelScope.launch {
+            val userMsg = AiMessage(sender = "USER", text = promptText)
+            _aiChatHistory.value = _aiChatHistory.value + userMsg
+            _isAiLoading.value = true
+
+            try {
+                val historyPairs = _aiChatHistory.value
+                    .filter { it.id != userMsg.id }
+                    .map { Pair(it.sender, it.text) }
+
+                val responseText = GeminiManager.generateContent(promptText, historyPairs)
+                
+                _aiChatHistory.value = _aiChatHistory.value + AiMessage(sender = "AI", text = responseText)
+            } catch (e: Exception) {
+                _aiChatHistory.value = _aiChatHistory.value + AiMessage(
+                    sender = "AI",
+                    text = "عذراً يا جاري، حدث خطأ أثناء الاتصال بمساعد الذكاء الاصطناعي. يرجى التحقق من الاتصال بالشبكة أو المحاولة لاحقاً."
+                )
+            } finally {
+                _isAiLoading.value = false
+            }
+        }
+    }
+
+    fun clearAiChat() {
+        _aiChatHistory.value = listOf(
+            AiMessage(
+                sender = "AI",
+                text = "تم تفريغ المحادثة. كيف يمكنني مساعدتك الآن في خدمات حيّنا السكني؟"
+            )
+        )
+    }
+
     // --- Admin panel functions ---
     fun adminDeleteUser(uid: String) {
         viewModelScope.launch {
